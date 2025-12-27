@@ -4,6 +4,9 @@ import type { LayoutFormat, FlyerData } from '../types/flyer'
 // Convert mm to points (1mm = 2.83465 points)
 const mmToPt = (mm: number): number => mm * 2.83465
 
+// Base64 encoded 1x1 pixel blue image for header background
+const bluePixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z/C/n4EIwDiqH6kfVQAAAABJRU5ErkJggg=='
+
 // Base schema fields used across all templates
 const createTextSchema = (
   name: string,
@@ -44,6 +47,7 @@ const createA5PortraitTemplate = (): Template => {
   const height = 210
   const padding = 10
   const headerHeight = 40
+  const qrSize = 35
 
   return {
     basePdf: {
@@ -53,12 +57,24 @@ const createA5PortraitTemplate = (): Template => {
     },
     schemas: [
       [
-        createTextSchema('title', padding, 15, width - padding * 2, 20, 18, '#1e40af', 'left'),
-        createTextSchema('datetime', padding, headerHeight + 10, width - padding * 2, 10, 10, '#374151'),
-        createTextSchema('location', padding, headerHeight + 25, width - padding * 2, 10, 10, '#374151'),
-        createTextSchema('speaker', padding, headerHeight + 40, width - padding * 2, 10, 9, '#6b7280'),
-        createTextSchema('desc', padding, headerHeight + 60, width - padding * 2 - 45, 80, 9, '#374151'),
-        createQrSchema('qr', width - padding - 35, height - padding - 35, 35),
+        // Header background
+        {
+          type: 'rect',
+          name: 'header-bg',
+          position: { x: 0, y: 0 },
+          width: width,
+          height: headerHeight,
+          backgroundColor: '#1e40af',
+        },
+        // Title in header
+        createTextSchema('title', padding, headerHeight / 2 + 3, width - padding * 2, 20, 14, '#ffffff', 'left'),
+        // Content
+        createTextSchema('datetime', padding, headerHeight + 15, width - padding * 2, 10, 10, '#374151'),
+        createTextSchema('location', padding, headerHeight + 30, width - padding * 2, 10, 10, '#374151'),
+        createTextSchema('speaker', padding, headerHeight + 50, width - padding * 2, 10, 9, '#6b7280'),
+        createTextSchema('desc', padding, headerHeight + 70, width - padding * 2 - qrSize - 5, 100, 9, '#374151'),
+        // QR Code
+        createQrSchema('qr', width - padding - qrSize, height - padding - qrSize, qrSize),
       ],
     ],
   }
@@ -70,6 +86,7 @@ const createA5LandscapeTemplate = (): Template => {
   const height = 148
   const padding = 10
   const headerHeight = 35
+  const qrSize = 30
 
   return {
     basePdf: {
@@ -79,12 +96,24 @@ const createA5LandscapeTemplate = (): Template => {
     },
     schemas: [
       [
-        createTextSchema('title', padding, 12, width - padding * 2, 18, 16, '#1e40af', 'left'),
-        createTextSchema('datetime', padding, headerHeight + 8, 90, 8, 9, '#374151'),
-        createTextSchema('location', padding, headerHeight + 20, 90, 8, 9, '#374151'),
-        createTextSchema('speaker', padding, headerHeight + 32, 90, 8, 8, '#6b7280'),
-        createTextSchema('desc', padding, headerHeight + 50, width - padding * 2 - 45, 60, 8, '#374151'),
-        createQrSchema('qr', width - padding - 30, height - padding - 30, 30),
+        // Header background
+        {
+          type: 'rect',
+          name: 'header-bg',
+          position: { x: 0, y: 0 },
+          width: width,
+          height: headerHeight,
+          backgroundColor: '#1e40af',
+        },
+        // Title in header
+        createTextSchema('title', padding, headerHeight / 2 + 2, width - padding * 2, 18, 12, '#ffffff', 'left'),
+        // Content
+        createTextSchema('datetime', padding, headerHeight + 15, 90, 10, 9, '#374151'),
+        createTextSchema('location', padding, headerHeight + 30, 90, 10, 9, '#374151'),
+        createTextSchema('speaker', padding, headerHeight + 50, 90, 10, 8, '#6b7280'),
+        createTextSchema('desc', padding, headerHeight + 70, width - padding * 2 - qrSize - 5, 40, 8, '#374151'),
+        // QR Code
+        createQrSchema('qr', width - padding - qrSize, height - padding - qrSize, qrSize),
       ],
     ],
   }
@@ -96,6 +125,7 @@ const createA6LongPortraitTemplate = (): Template => {
   const height = 210
   const padding = 6
   const headerHeight = 25
+  const qrSize = 25
 
   return {
     basePdf: {
@@ -105,12 +135,24 @@ const createA6LongPortraitTemplate = (): Template => {
     },
     schemas: [
       [
-        createTextSchema('title', padding, 10, width - padding * 2, 12, 10, '#1e40af', 'left'),
-        createTextSchema('datetime', padding, headerHeight + 6, width - padding * 2, 6, 6, '#374151'),
-        createTextSchema('location', padding, headerHeight + 15, width - padding * 2, 6, 6, '#374151'),
-        createTextSchema('speaker', padding, headerHeight + 24, width - padding * 2, 6, 5, '#6b7280'),
-        createTextSchema('desc', padding, headerHeight + 38, width - padding * 2, 100, 5, '#374151'),
-        createQrSchema('qr', width - padding - 20, height - padding - 20, 20),
+        // Header background
+        {
+          type: 'rect',
+          name: 'header-bg',
+          position: { x: 0, y: 0 },
+          width: width,
+          height: headerHeight,
+          backgroundColor: '#1e40af',
+        },
+        // Title in header
+        createTextSchema('title', padding, headerHeight / 2 + 1, width - padding * 2, 12, 10, '#ffffff', 'left'),
+        // Content
+        createTextSchema('datetime', padding, headerHeight + 10, width - padding * 2, 8, 6, '#374151'),
+        createTextSchema('location', padding, headerHeight + 20, width - padding * 2, 8, 6, '#374151'),
+        createTextSchema('speaker', padding, headerHeight + 35, width - padding * 2, 8, 5, '#6b7280'),
+        createTextSchema('desc', padding, headerHeight + 50, width - padding * 2, 120, 5, '#374151'),
+        // QR Code
+        createQrSchema('qr', width - padding - qrSize, height - padding - qrSize, qrSize),
       ],
     ],
   }
@@ -122,6 +164,7 @@ const createA6LongLandscapeTemplate = (): Template => {
   const height = 105
   const padding = 8
   const headerHeight = 25
+  const qrSize = 25
 
   return {
     basePdf: {
@@ -131,12 +174,24 @@ const createA6LongLandscapeTemplate = (): Template => {
     },
     schemas: [
       [
-        createTextSchema('title', padding, 10, width - padding * 2, 12, 12, '#1e40af', 'left'),
-        createTextSchema('datetime', padding, headerHeight + 6, 80, 6, 7, '#374151'),
-        createTextSchema('location', 100, headerHeight + 6, 80, 6, 7, '#374151'),
-        createTextSchema('speaker', padding, headerHeight + 18, 80, 6, 6, '#6b7280'),
-        createTextSchema('desc', padding, headerHeight + 32, width - padding * 2 - 35, 45, 6, '#374151'),
-        createQrSchema('qr', width - padding - 25, height - padding - 25, 25),
+        // Header background
+        {
+          type: 'rect',
+          name: 'header-bg',
+          position: { x: 0, y: 0 },
+          width: width,
+          height: headerHeight,
+          backgroundColor: '#1e40af',
+        },
+        // Title in header
+        createTextSchema('title', padding, headerHeight / 2 + 1, width - padding * 2, 12, 12, '#ffffff', 'left'),
+        // Content - two columns for better space usage
+        createTextSchema('datetime', padding, headerHeight + 10, 90, 8, 7, '#374151'),
+        createTextSchema('location', 110, headerHeight + 10, 90, 8, 7, '#374151'),
+        createTextSchema('speaker', padding, headerHeight + 22, 90, 8, 6, '#6b7280'),
+        createTextSchema('desc', padding, headerHeight + 35, width - padding * 2 - qrSize - 5, 45, 6, '#374151'),
+        // QR Code
+        createQrSchema('qr', width - padding - qrSize, height - padding - qrSize, qrSize),
       ],
     ],
   }

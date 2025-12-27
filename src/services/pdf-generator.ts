@@ -1,5 +1,5 @@
 import { generate } from '@pdfme/generator'
-import { text, barcodes } from '@pdfme/schemas'
+import { text, barcodes, image } from '@pdfme/schemas'
 import type { FlyerData, LayoutFormat } from '../types/flyer'
 import { LAYOUT_CONFIGS } from '../types/flyer'
 import { getTemplate, flyerDataToInput, getAllFormats } from './pdfme-templates'
@@ -8,6 +8,14 @@ import { getTemplate, flyerDataToInput, getAllFormats } from './pdfme-templates'
 const plugins = {
   Text: text,
   QRCode: barcodes.qrcode,
+  Image: image,
+  rect: {
+    pdf: (value, { width, height, backgroundColor = '#ffffff' }) => ({
+      width,
+      height,
+      color: backgroundColor,
+    }),
+  },
 }
 
 // Generate a single PDF for a specific format

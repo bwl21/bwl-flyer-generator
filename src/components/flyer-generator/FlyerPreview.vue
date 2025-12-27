@@ -119,13 +119,18 @@ const props = defineProps<{
 
 const scale = computed(() => props.scale ?? 1.5)
 
+// Convert mm to pixels (1mm = 3.7795275591 pixels at 96dpi)
+const mmToPx = (mm: number): number => mm * 3.7795275591
+
 // Scaled dimensions for display
-const scaledWidth = computed(() => props.config.width * scale.value)
-const scaledHeight = computed(() => props.config.height * scale.value)
+const scaledWidth = computed(() => mmToPx(props.config.width) * scale.value)
+const scaledHeight = computed(() => mmToPx(props.config.height) * scale.value)
 
 const wrapperStyle = computed(() => ({
   width: `${scaledWidth.value}px`,
   height: `${scaledHeight.value}px`,
+  overflow: 'hidden',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
 }))
 
 // Layout calculations based on format
@@ -196,7 +201,8 @@ const truncate = (text: string, maxLength: number): string => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  margin: 0.5rem;
 }
 
 .preview-title {
@@ -204,18 +210,29 @@ const truncate = (text: string, maxLength: number): string => {
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;
+  text-align: center;
 }
 
 .preview-wrapper {
-  background: #f9fafb;
-  border-radius: 0.375rem;
-  padding: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .preview-svg {
   display: block;
   background: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  max-width: 100%;
+  height: auto;
+}
+
+/* Add a subtle border to the SVG for better visibility */
+.preview-svg rect:first-of-type {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
 }
 </style>
