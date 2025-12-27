@@ -88,7 +88,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { Designer } from '@pdfme/ui'
-import { text, barcodes } from '@pdfme/schemas'
+import { text, barcodes, rectangle, image, line } from '@pdfme/schemas'
 import type { Template } from '@pdfme/common'
 import JSZip from 'jszip'
 import type { LayoutFormat, TemplateSetEntry, TemplateSet } from '../../types/flyer'
@@ -176,6 +176,9 @@ const openEditor = async (templateId: LayoutFormat) => {
       plugins: {
         Text: text,
         QRCode: barcodes.qrcode,
+        Rectangle: rectangle,
+        Image: image,
+        Line: line,
       },
     })
   } catch (error) {

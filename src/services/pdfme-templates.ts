@@ -1,12 +1,6 @@
 import type { Template, Schema } from '@pdfme/common'
 import type { LayoutFormat, FlyerData } from '../types/flyer'
 
-// Convert mm to points (1mm = 2.83465 points)
-const mmToPt = (mm: number): number => mm * 2.83465
-
-// Base64 encoded 1x1 pixel blue image for header background
-const bluePixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z/C/n4EIwDiqH6kfVQAAAABJRU5ErkJggg=='
-
 // Base schema fields used across all templates
 const createTextSchema = (
   name: string,
@@ -51,20 +45,21 @@ const createA5PortraitTemplate = (): Template => {
 
   return {
     basePdf: {
-      width: mmToPt(width),
-      height: mmToPt(height),
+      width,
+      height,
       padding: [0, 0, 0, 0],
     },
     schemas: [
       [
         // Header background
         {
-          type: 'rect',
+          type: 'rectangle',
           name: 'header-bg',
           position: { x: 0, y: 0 },
           width: width,
           height: headerHeight,
-          backgroundColor: '#1e40af',
+          color: '#1e40af',
+          borderWidth: 0,
         },
         // Title in header
         createTextSchema('title', padding, headerHeight / 2 + 3, width - padding * 2, 20, 14, '#ffffff', 'left'),
@@ -90,20 +85,21 @@ const createA5LandscapeTemplate = (): Template => {
 
   return {
     basePdf: {
-      width: mmToPt(width),
-      height: mmToPt(height),
+      width,
+      height,
       padding: [0, 0, 0, 0],
     },
     schemas: [
       [
         // Header background
         {
-          type: 'rect',
+          type: 'rectangle',
           name: 'header-bg',
           position: { x: 0, y: 0 },
           width: width,
           height: headerHeight,
-          backgroundColor: '#1e40af',
+          color: '#1e40af',
+          borderWidth: 0,
         },
         // Title in header
         createTextSchema('title', padding, headerHeight / 2 + 2, width - padding * 2, 18, 12, '#ffffff', 'left'),
@@ -129,20 +125,21 @@ const createA6LongPortraitTemplate = (): Template => {
 
   return {
     basePdf: {
-      width: mmToPt(width),
-      height: mmToPt(height),
+      width,
+      height,
       padding: [0, 0, 0, 0],
     },
     schemas: [
       [
         // Header background
         {
-          type: 'rect',
+          type: 'rectangle',
           name: 'header-bg',
           position: { x: 0, y: 0 },
           width: width,
           height: headerHeight,
-          backgroundColor: '#1e40af',
+          color: '#1e40af',
+          borderWidth: 0,
         },
         // Title in header
         createTextSchema('title', padding, headerHeight / 2 + 1, width - padding * 2, 12, 10, '#ffffff', 'left'),
@@ -168,20 +165,20 @@ const createA6LongLandscapeTemplate = (): Template => {
 
   return {
     basePdf: {
-      width: mmToPt(width),
-      height: mmToPt(height),
+      width,
+      height,
       padding: [0, 0, 0, 0],
     },
     schemas: [
       [
         // Header background
         {
-          type: 'rect',
+          type: 'rectangle',
           name: 'header-bg',
           position: { x: 0, y: 0 },
           width: width,
           height: headerHeight,
-          backgroundColor: '#1e40af',
+          color: '#1e40af',
         },
         // Title in header
         createTextSchema('title', padding, headerHeight / 2 + 1, width - padding * 2, 12, 12, '#ffffff', 'left'),

@@ -51,12 +51,11 @@
       <section class="preview-section">
         <h2 class="section-title">Vorschau</h2>
         <div class="preview-grid">
-          <FlyerPreview
+          <FlyerPreviewPdfme
             v-for="config in layoutConfigs"
             :key="config.id"
             :data="previewData"
             :config="config"
-            :scale="getPreviewScale(config.id)"
           />
         </div>
       </section>
@@ -67,7 +66,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import FlyerForm from './FlyerForm.vue'
-import FlyerPreview from './FlyerPreview.vue'
+import FlyerPreviewPdfme from './FlyerPreviewPdfme.vue'
 import { generateAndDownloadZip, type ZipProgress } from '../../services/zip-download'
 import type { FlyerData, LayoutConfig, FlyerProject } from '../../types/flyer'
 import { LAYOUT_CONFIGS } from '../../types/flyer'
@@ -109,8 +108,7 @@ const statusClass = computed(() => ({
 // Handle form updates
 const handleFormUpdate = (data: FlyerData) => {
   Object.assign(flyerData, data)
-  // Auto-update preview for better UX
-  Object.assign(previewData, data)
+  // Don't auto-update preview - user must click button
 }
 
 // Update preview manually
@@ -163,15 +161,6 @@ const downloadZip = async () => {
   } finally {
     isGenerating.value = false
   }
-}
-
-// Get preview scale based on layout
-const getPreviewScale = (layoutId: string): number => {
-  // Smaller scale for narrow layouts
-  if (layoutId.includes('a6-long')) {
-    return 1.2
-  }
-  return 1.5
 }
 
 // Save project to JSON file
