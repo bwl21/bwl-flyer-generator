@@ -67,7 +67,35 @@ export class TemplateStorageService {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (!stored) return null
 
-      const data: StoredTemplates = JSON.parse(stored)
+      const data = JSON.parse(stored)
+      
+      // Check if data is in old format (templates are plain Template objects)
+      if (data.templates) {
+        const firstTemplate = Object.values(data.templates)[0] as any
+        if (firstTemplate && firstTemplate.schemas && !firstTemplate.template) {
+          // Old format detected - migrate to new format
+          console.log('Migrating templates to new format with mapping support')
+          const migratedTemplates: Record<LayoutFormat, TemplateWithMapping> = {} as Record<LayoutFormat, TemplateWithMapping>
+          
+          for (const [key, template] of Object.entries(data.templates)) {
+            migratedTemplates[key as LayoutFormat] = {
+              template: template as Template,
+              appointmentMapping: undefined
+            }
+          }
+          
+          // Save migrated data
+          const migratedData: StoredTemplates = {
+            version: '1.0',
+            templates: migratedTemplates,
+            updatedAt: new Date().toISOString()
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedData))
+          
+          return migratedTemplates
+        }
+      }
+      
       return data.templates
     } catch (error) {
       console.error('Failed to load templates:', error)
