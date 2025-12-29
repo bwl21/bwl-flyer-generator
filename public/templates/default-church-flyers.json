@@ -1,0 +1,301 @@
+{
+  "version": "1.0",
+  "name": "Church Flyers Default",
+  "description": "Standard-Vorlagen für Gemeinde-Flyer mit Header, Content und QR-Code",
+  "mainTemplate": "a5-portrait",
+  "metadata": {
+    "author": "ChurchTools Flyer Generator",
+    "created": "2025-12-29",
+    "updated": "2025-12-29"
+  },
+  "templates": {
+    "a5-portrait": {
+      "name": "A5 hoch",
+      "basePdf": {
+        "width": 148,
+        "height": 210,
+        "padding": [0, 0, 0, 0]
+      },
+      "schemas": [[
+        {
+          "type": "rectangle",
+          "name": "header-bg",
+          "position": { "x": 0, "y": 0 },
+          "width": 148,
+          "height": 40,
+          "color": "#1e40af",
+          "borderWidth": 0
+        },
+        {
+          "type": "text",
+          "name": "title",
+          "position": { "x": 10, "y": 23 },
+          "width": 128,
+          "height": 20,
+          "fontSize": 14,
+          "fontColor": "#ffffff",
+          "alignment": "left"
+        },
+        {
+          "type": "text",
+          "name": "datetime",
+          "position": { "x": 10, "y": 55 },
+          "width": 128,
+          "height": 10,
+          "fontSize": 10,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "location",
+          "position": { "x": 10, "y": 70 },
+          "width": 128,
+          "height": 10,
+          "fontSize": 10,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "speaker",
+          "position": { "x": 10, "y": 90 },
+          "width": 128,
+          "height": 10,
+          "fontSize": 9,
+          "fontColor": "#6b7280"
+        },
+        {
+          "type": "text",
+          "name": "desc",
+          "position": { "x": 10, "y": 110 },
+          "width": 93,
+          "height": 100,
+          "fontSize": 9,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "qrcode",
+          "name": "qr",
+          "position": { "x": 103, "y": 165 },
+          "width": 35,
+          "height": 35
+        }
+      ]]
+    },
+    "a5-landscape": {
+      "name": "A5 quer",
+      "basePdf": {
+        "width": 210,
+        "height": 148,
+        "padding": [0, 0, 0, 0]
+      },
+      "schemas": [[
+        {
+          "type": "rectangle",
+          "name": "header-bg",
+          "position": { "x": 0, "y": 0 },
+          "width": 210,
+          "height": 35,
+          "color": "#1e40af",
+          "borderWidth": 0
+        },
+        {
+          "type": "text",
+          "name": "title",
+          "position": { "x": 10, "y": 19.5 },
+          "width": 190,
+          "height": 18,
+          "fontSize": 12,
+          "fontColor": "#ffffff",
+          "alignment": "left"
+        },
+        {
+          "type": "text",
+          "name": "datetime",
+          "position": { "x": 10, "y": 50 },
+          "width": 90,
+          "height": 10,
+          "fontSize": 9,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "location",
+          "position": { "x": 10, "y": 65 },
+          "width": 90,
+          "height": 10,
+          "fontSize": 9,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "speaker",
+          "position": { "x": 10, "y": 85 },
+          "width": 90,
+          "height": 10,
+          "fontSize": 8,
+          "fontColor": "#6b7280"
+        },
+        {
+          "type": "text",
+          "name": "desc",
+          "position": { "x": 10, "y": 105 },
+          "width": 165,
+          "height": 40,
+          "fontSize": 8,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "qrcode",
+          "name": "qr",
+          "position": { "x": 170, "y": 108 },
+          "width": 30,
+          "height": 30
+        }
+      ]]
+    },
+    "a6-long-portrait": {
+      "name": "A6 lang hoch",
+      "basePdf": {
+        "width": 105,
+        "height": 210,
+        "padding": [0, 0, 0, 0]
+      },
+      "schemas": [[
+        {
+          "type": "rectangle",
+          "name": "header-bg",
+          "position": { "x": 0, "y": 0 },
+          "width": 105,
+          "height": 25,
+          "color": "#1e40af",
+          "borderWidth": 0
+        },
+        {
+          "type": "text",
+          "name": "title",
+          "position": { "x": 6, "y": 13.5 },
+          "width": 93,
+          "height": 12,
+          "fontSize": 10,
+          "fontColor": "#ffffff",
+          "alignment": "left"
+        },
+        {
+          "type": "text",
+          "name": "datetime",
+          "position": { "x": 6, "y": 35 },
+          "width": 93,
+          "height": 8,
+          "fontSize": 6,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "location",
+          "position": { "x": 6, "y": 45 },
+          "width": 93,
+          "height": 8,
+          "fontSize": 6,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "speaker",
+          "position": { "x": 6, "y": 60 },
+          "width": 93,
+          "height": 8,
+          "fontSize": 5,
+          "fontColor": "#6b7280"
+        },
+        {
+          "type": "text",
+          "name": "desc",
+          "position": { "x": 6, "y": 75 },
+          "width": 93,
+          "height": 120,
+          "fontSize": 5,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "qrcode",
+          "name": "qr",
+          "position": { "x": 74, "y": 179 },
+          "width": 25,
+          "height": 25
+        }
+      ]]
+    },
+    "a6-long-landscape": {
+      "name": "A6 lang quer",
+      "basePdf": {
+        "width": 210,
+        "height": 105,
+        "padding": [0, 0, 0, 0]
+      },
+      "schemas": [[
+        {
+          "type": "rectangle",
+          "name": "header-bg",
+          "position": { "x": 0, "y": 0 },
+          "width": 210,
+          "height": 25,
+          "color": "#1e40af",
+          "borderWidth": 0
+        },
+        {
+          "type": "text",
+          "name": "title",
+          "position": { "x": 8, "y": 13.5 },
+          "width": 194,
+          "height": 12,
+          "fontSize": 12,
+          "fontColor": "#ffffff",
+          "alignment": "left"
+        },
+        {
+          "type": "text",
+          "name": "datetime",
+          "position": { "x": 8, "y": 35 },
+          "width": 90,
+          "height": 8,
+          "fontSize": 7,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "location",
+          "position": { "x": 110, "y": 35 },
+          "width": 90,
+          "height": 8,
+          "fontSize": 7,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "text",
+          "name": "speaker",
+          "position": { "x": 8, "y": 47 },
+          "width": 90,
+          "height": 8,
+          "fontSize": 6,
+          "fontColor": "#6b7280"
+        },
+        {
+          "type": "text",
+          "name": "desc",
+          "position": { "x": 8, "y": 60 },
+          "width": 169,
+          "height": 45,
+          "fontSize": 6,
+          "fontColor": "#374151"
+        },
+        {
+          "type": "qrcode",
+          "name": "qr",
+          "position": { "x": 177, "y": 72 },
+          "width": 25,
+          "height": 25
+        }
+      ]]
+    }
+  }
+}

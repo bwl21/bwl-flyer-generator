@@ -2,7 +2,20 @@
   <div class="flyer-generator">
     <header class="generator-header">
       <h1>ChurchTools Flyer Generator</h1>
+      <div class="template-info">
+        <span class="current-template">Vorlagenset: {{ currentTemplateSetName }}</span>
+        <button @click="showTemplateSelector = true" class="btn-secondary">
+          Vorlagen wechseln
+        </button>
+      </div>
     </header>
+
+    <!-- Template Selector Modal -->
+    <TemplateSelectorModal
+      v-if="showTemplateSelector"
+      @close="showTemplateSelector = false"
+      @select="loadTemplateSet"
+    />
 
     <main class="generator-main">
       <!-- Form Section -->
@@ -67,9 +80,11 @@
 import { ref, reactive, computed } from 'vue'
 import FlyerForm from './FlyerForm.vue'
 import FlyerPreviewPdfme from './FlyerPreviewPdfme.vue'
+import TemplateSelectorModal from '../TemplateSelectorModal.vue'
 import { generateAndDownloadZip, type ZipProgress } from '../../services/zip-download'
 import type { FlyerData, LayoutConfig, FlyerProject } from '../../types/flyer'
 import { LAYOUT_CONFIGS } from '../../types/flyer'
+import type { TemplateSet } from '../../services/template-sync'
 
 // Layout configurations
 const layoutConfigs = Object.values(LAYOUT_CONFIGS)
@@ -104,6 +119,17 @@ const statusClass = computed(() => ({
   'status-success': statusType.value === 'success',
   'status-error': statusType.value === 'error',
 }))
+
+// Template management
+const showTemplateSelector = ref(false)
+const currentTemplateSetName = ref('Church Flyers Default')
+
+function loadTemplateSet(templateSet: TemplateSet) {
+  currentTemplateSetName.value = templateSet.name
+  showTemplateSelector.value = false
+  setStatus(`Vorlagenset "${templateSet.name}" geladen`, 'success')
+  // TODO: Update templates in LAYOUT_CONFIGS
+}
 
 // Handle form updates
 const handleFormUpdate = (data: FlyerData) => {

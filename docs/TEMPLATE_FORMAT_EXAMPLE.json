@@ -1,0 +1,375 @@
+{
+  "$schema": "https://example.com/template-set-schema.json",
+  "version": "1.0",
+  "name": "Church Flyers Default",
+  "description": "Standard-Vorlagen für Gemeinde-Flyer mit Header, Content und QR-Code",
+  "metadata": {
+    "author": "Gemeinde Beispiel",
+    "created": "2025-12-27",
+    "updated": "2025-12-27",
+    "license": "CC-BY-4.0"
+  },
+  
+  "shared": {
+    "colors": {
+      "primary": "#1e40af",
+      "textDark": "#374151",
+      "textLight": "#6b7280",
+      "textWhite": "#ffffff"
+    },
+    "fonts": {
+      "title": 14,
+      "subtitle": 10,
+      "body": 9
+    },
+    "spacing": {
+      "padding": 10,
+      "lineHeight": 15
+    },
+    "fields": {
+      "header-bg": {
+        "type": "rectangle",
+        "name": "header-bg",
+        "color": "{{colors.primary}}",
+        "borderWidth": 0
+      },
+      "title": {
+        "type": "text",
+        "name": "title",
+        "fontColor": "{{colors.textWhite}}",
+        "alignment": "left"
+      },
+      "datetime": {
+        "type": "text",
+        "name": "datetime",
+        "fontColor": "{{colors.textDark}}"
+      },
+      "location": {
+        "type": "text",
+        "name": "location",
+        "fontColor": "{{colors.textDark}}"
+      },
+      "speaker": {
+        "type": "text",
+        "name": "speaker",
+        "fontColor": "{{colors.textLight}}"
+      },
+      "desc": {
+        "type": "text",
+        "name": "desc",
+        "fontColor": "{{colors.textDark}}"
+      },
+      "qr": {
+        "type": "qrcode",
+        "name": "qr"
+      }
+    }
+  },
+  
+  "templates": {
+    "a5-portrait": {
+      "name": "A5 hoch",
+      "description": "Hochformat für Aushänge und Handzettel",
+      "basePdf": {
+        "width": 148,
+        "height": 210,
+        "padding": [0, 0, 0, 0]
+      },
+      "layout": {
+        "headerHeight": 40,
+        "qrSize": 35
+      },
+      "schemas": [
+        [
+          {
+            "$ref": "#/shared/fields/header-bg",
+            "position": { "x": 0, "y": 0 },
+            "width": 148,
+            "height": 40
+          },
+          {
+            "$ref": "#/shared/fields/title",
+            "position": { "x": 10, "y": 23 },
+            "width": 128,
+            "height": 20,
+            "fontSize": "{{fonts.title}}"
+          },
+          {
+            "$ref": "#/shared/fields/datetime",
+            "position": { "x": 10, "y": 55 },
+            "width": 128,
+            "height": 10,
+            "fontSize": "{{fonts.subtitle}}"
+          },
+          {
+            "$ref": "#/shared/fields/location",
+            "position": { "x": 10, "y": 70 },
+            "width": 128,
+            "height": 10,
+            "fontSize": "{{fonts.subtitle}}"
+          },
+          {
+            "$ref": "#/shared/fields/speaker",
+            "position": { "x": 10, "y": 90 },
+            "width": 128,
+            "height": 10,
+            "fontSize": "{{fonts.body}}"
+          },
+          {
+            "$ref": "#/shared/fields/desc",
+            "position": { "x": 10, "y": 110 },
+            "width": 93,
+            "height": 100,
+            "fontSize": "{{fonts.body}}"
+          },
+          {
+            "$ref": "#/shared/fields/qr",
+            "position": { "x": 103, "y": 165 },
+            "width": 35,
+            "height": 35
+          }
+        ]
+      ]
+    },
+    
+    "a5-landscape": {
+      "name": "A5 quer",
+      "description": "Querformat für Präsentationen",
+      "basePdf": {
+        "width": 210,
+        "height": 148,
+        "padding": [0, 0, 0, 0]
+      },
+      "layout": {
+        "headerHeight": 35,
+        "qrSize": 30
+      },
+      "schemas": [
+        [
+          {
+            "type": "rectangle",
+            "name": "header-bg",
+            "position": { "x": 0, "y": 0 },
+            "width": 210,
+            "height": 35,
+            "color": "{{colors.primary}}",
+            "borderWidth": 0
+          },
+          {
+            "type": "text",
+            "name": "title",
+            "position": { "x": 10, "y": 19.5 },
+            "width": 190,
+            "height": 18,
+            "fontSize": 12,
+            "fontColor": "{{colors.textWhite}}",
+            "alignment": "left"
+          },
+          {
+            "type": "text",
+            "name": "datetime",
+            "position": { "x": 10, "y": 50 },
+            "width": 90,
+            "height": 10,
+            "fontSize": "{{fonts.body}}",
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "text",
+            "name": "location",
+            "position": { "x": 10, "y": 65 },
+            "width": 90,
+            "height": 10,
+            "fontSize": "{{fonts.body}}",
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "text",
+            "name": "speaker",
+            "position": { "x": 10, "y": 85 },
+            "width": 90,
+            "height": 10,
+            "fontSize": 8,
+            "fontColor": "{{colors.textLight}}"
+          },
+          {
+            "type": "text",
+            "name": "desc",
+            "position": { "x": 10, "y": 105 },
+            "width": 165,
+            "height": 40,
+            "fontSize": 8,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "qrcode",
+            "name": "qr",
+            "position": { "x": 170, "y": 108 },
+            "width": 30,
+            "height": 30
+          }
+        ]
+      ]
+    },
+    
+    "a6-long-portrait": {
+      "name": "A6 lang hoch",
+      "description": "Schmales Hochformat für Lesezeichen",
+      "basePdf": {
+        "width": 105,
+        "height": 210,
+        "padding": [0, 0, 0, 0]
+      },
+      "layout": {
+        "headerHeight": 25,
+        "qrSize": 25
+      },
+      "schemas": [
+        [
+          {
+            "type": "rectangle",
+            "name": "header-bg",
+            "position": { "x": 0, "y": 0 },
+            "width": 105,
+            "height": 25,
+            "color": "{{colors.primary}}",
+            "borderWidth": 0
+          },
+          {
+            "type": "text",
+            "name": "title",
+            "position": { "x": 6, "y": 13.5 },
+            "width": 93,
+            "height": 12,
+            "fontSize": 10,
+            "fontColor": "{{colors.textWhite}}",
+            "alignment": "left"
+          },
+          {
+            "type": "text",
+            "name": "datetime",
+            "position": { "x": 6, "y": 35 },
+            "width": 93,
+            "height": 8,
+            "fontSize": 6,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "text",
+            "name": "location",
+            "position": { "x": 6, "y": 45 },
+            "width": 93,
+            "height": 8,
+            "fontSize": 6,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "text",
+            "name": "speaker",
+            "position": { "x": 6, "y": 60 },
+            "width": 93,
+            "height": 8,
+            "fontSize": 5,
+            "fontColor": "{{colors.textLight}}"
+          },
+          {
+            "type": "text",
+            "name": "desc",
+            "position": { "x": 6, "y": 75 },
+            "width": 93,
+            "height": 120,
+            "fontSize": 5,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "qrcode",
+            "name": "qr",
+            "position": { "x": 74, "y": 179 },
+            "width": 25,
+            "height": 25
+          }
+        ]
+      ]
+    },
+    
+    "a6-long-landscape": {
+      "name": "A6 lang quer",
+      "description": "Breites Querformat für Banner",
+      "basePdf": {
+        "width": 210,
+        "height": 105,
+        "padding": [0, 0, 0, 0]
+      },
+      "layout": {
+        "headerHeight": 25,
+        "qrSize": 25
+      },
+      "schemas": [
+        [
+          {
+            "type": "rectangle",
+            "name": "header-bg",
+            "position": { "x": 0, "y": 0 },
+            "width": 210,
+            "height": 25,
+            "color": "{{colors.primary}}",
+            "borderWidth": 0
+          },
+          {
+            "type": "text",
+            "name": "title",
+            "position": { "x": 8, "y": 13.5 },
+            "width": 194,
+            "height": 12,
+            "fontSize": 12,
+            "fontColor": "{{colors.textWhite}}",
+            "alignment": "left"
+          },
+          {
+            "type": "text",
+            "name": "datetime",
+            "position": { "x": 8, "y": 35 },
+            "width": 90,
+            "height": 8,
+            "fontSize": 7,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "text",
+            "name": "location",
+            "position": { "x": 110, "y": 35 },
+            "width": 90,
+            "height": 8,
+            "fontSize": 7,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "text",
+            "name": "speaker",
+            "position": { "x": 8, "y": 47 },
+            "width": 90,
+            "height": 8,
+            "fontSize": 6,
+            "fontColor": "{{colors.textLight}}"
+          },
+          {
+            "type": "text",
+            "name": "desc",
+            "position": { "x": 8, "y": 60 },
+            "width": 169,
+            "height": 45,
+            "fontSize": 6,
+            "fontColor": "{{colors.textDark}}"
+          },
+          {
+            "type": "qrcode",
+            "name": "qr",
+            "position": { "x": 177, "y": 72 },
+            "width": 25,
+            "height": 25
+          }
+        ]
+      ]
+    }
+  }
+}
