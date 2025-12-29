@@ -173,6 +173,7 @@ const handleFormUpdate = (data: Record<string, string>) => {
 
 // Update preview manually
 const updatePreview = () => {
+  console.log('Updating preview with data:', flyerData)
   Object.assign(previewData, flyerData)
   setStatus('Vorschau aktualisiert', 'success')
 }

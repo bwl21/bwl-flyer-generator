@@ -129,10 +129,18 @@ const formFields = computed(() => {
 // Initialize formData with all fields
 const formData = reactive<Record<string, string>>({})
 
-// Initialize all fields
-formFields.value.forEach(field => {
-  formData[field.name] = ''
-})
+// Watch formFields and initialize fields when they change
+watch(
+  formFields,
+  (fields) => {
+    fields.forEach(field => {
+      if (!(field.name in formData)) {
+        formData[field.name] = ''
+      }
+    })
+  },
+  { immediate: true }
+)
 
 // Emit updates when form data changes
 watch(
@@ -170,12 +178,12 @@ const loadExample = () => {
     formData.comment = 'Bitte um Anmeldung bis 20.12.'
   }
   
-  // Set example image if image field exists
+  // Set example image if image field exists (use transparent 1x1 PNG as placeholder)
   Object.keys(formData).forEach(key => {
     const field = formFields.value.find(f => f.name === key)
     if (field?.type === 'image' && !formData[key]) {
-      // Use a placeholder image
-      formData[key] = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5CaWxkPC90ZXh0Pjwvc3ZnPg=='
+      // Use a 1x1 transparent PNG placeholder (compatible with PDFme)
+      formData[key] = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
     }
   })
 }

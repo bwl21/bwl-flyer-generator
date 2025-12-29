@@ -33,7 +33,16 @@ const renderPreview = async () => {
 
   try {
     const template = getTemplate(props.config.id)
+    if (!template) {
+      console.error('Template not found:', props.config.id)
+      return
+    }
+    
     const inputs = [flyerDataToInput(props.data)]
+    if (!inputs[0]) {
+      console.error('Failed to convert flyer data to input')
+      return
+    }
 
     // Generate PDF
     const pdf = await generate({
