@@ -284,9 +284,21 @@ export const flyerDataToInput = (data: FlyerData | Record<string, string>): Reco
   // Add any additional fields from data
   Object.keys(data).forEach(key => {
     if (!(key in result)) {
-      const value = (data as any)[key] || ''
-      // For image fields, use placeholder if empty
-      result[key] = (imageFields.has(key) && !value) ? PLACEHOLDER_IMAGE : value
+      let value = (data as any)[key] || ''
+      // For image fields, handle URLs and empty values
+      if (imageFields.has(key)) {
+        if (!value) {
+          value = PLACEHOLDER_IMAGE
+        } else if (typeof value === 'string' && 
+                  !value.startsWith('data:') && 
+                  !value.startsWith('http')) {
+          // If it's not a data URL or HTTP URL, assume it's a file path and convert to data URL
+          // Note: The actual file reading should be done before this function
+          // This is just a fallback in case a file path is passed directly
+          value = PLACEHOLDER_IMAGE
+        }
+      }
+      result[key] = value
     }
   })
   
