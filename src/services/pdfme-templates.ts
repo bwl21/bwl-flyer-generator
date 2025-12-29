@@ -246,13 +246,17 @@ export const flyerDataToInput = (data: FlyerData | Record<string, string>): Reco
   const imageFields = new Set<string>()
   
   // Collect all image field names
-  Object.values(templates).forEach(template => {
-    template.schemas[0]?.forEach(schema => {
-      if (schema.type === 'image') {
-        imageFields.add(schema.name)
+  if (templates) {
+    Object.values(templates).forEach(template => {
+      if (template && template.schemas && template.schemas[0]) {
+        template.schemas[0].forEach(schema => {
+          if (schema.type === 'image') {
+            imageFields.add(schema.name)
+          }
+        })
       }
     })
-  })
+  }
   
   // If data is already a Record<string, string>, process it
   if (!('title' in data) && !('datetime' in data)) {

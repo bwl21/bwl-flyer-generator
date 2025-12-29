@@ -255,9 +255,16 @@ const statusClass = computed(() => ({
 // Initialize with templates (stored or default)
 const initializeTemplates = () => {
   const allTemplates = getAllTemplates()
+  if (!allTemplates) {
+    console.error('No templates available')
+    return
+  }
+  
   templateEntries.value = Object.entries(allTemplates).map(([id, template]) => {
     const config = LAYOUT_CONFIGS[id as LayoutFormat]
-    const fields = template.schemas[0]?.map((s) => s.name) || []
+    const fields = (template && template.schemas && template.schemas[0]) 
+      ? template.schemas[0].map((s) => s.name) 
+      : []
     return {
       id: id as LayoutFormat,
       name: config.name,
