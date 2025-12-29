@@ -236,11 +236,34 @@ export const getAllTemplates = (): Record<LayoutFormat, Template> => {
   return getDefaultTemplates()
 }
 
+// Placeholder image for empty image fields (1x1 transparent PNG)
+const PLACEHOLDER_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+
 // Convert FlyerData to pdfme input format (now supports dynamic fields)
 export const flyerDataToInput = (data: FlyerData | Record<string, string>): Record<string, string> => {
-  // If data is already a Record<string, string>, return it
+  // Get all templates to check field types
+  const templates = getAllTemplates()
+  const imageFields = new Set<string>()
+  
+  // Collect all image field names
+  Object.values(templates).forEach(template => {
+    template.schemas[0]?.forEach(schema => {
+      if (schema.type === 'image') {
+        imageFields.add(schema.name)
+      }
+    })
+  })
+  
+  // If data is already a Record<string, string>, process it
   if (!('title' in data) && !('datetime' in data)) {
-    return data as Record<string, string>
+    const result = { ...(data as Record<string, string>) }
+    // Ensure image fields have valid data URLs
+    imageFields.forEach(fieldName => {
+      if (!result[fieldName] || result[fieldName].trim() === '') {
+        result[fieldName] = PLACEHOLDER_IMAGE
+      }
+    })
+    return result
   }
   
   // Otherwise, convert FlyerData to Record<string, string>
@@ -257,7 +280,9 @@ export const flyerDataToInput = (data: FlyerData | Record<string, string>): Reco
   // Add any additional fields from data
   Object.keys(data).forEach(key => {
     if (!(key in result)) {
-      result[key] = (data as any)[key] || ''
+      const value = (data as any)[key] || ''
+      // For image fields, use placeholder if empty
+      result[key] = (imageFields.has(key) && !value) ? PLACEHOLDER_IMAGE : value
     }
   })
   

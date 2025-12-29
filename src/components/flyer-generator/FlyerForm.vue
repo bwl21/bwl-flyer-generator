@@ -4,10 +4,33 @@
       <label :for="field.name" class="form-label">
         {{ field.label }}
         <span v-if="field.required">*</span>
+        <span v-if="field.type === 'image'" class="field-type-badge">Bild</span>
       </label>
       
+      <!-- Image field with file upload -->
+      <div v-if="field.type === 'image'" class="image-field">
+        <input
+          :id="field.name"
+          type="file"
+          accept="image/*"
+          class="form-file-input"
+          @change="handleImageUpload($event, field.name)"
+        />
+        <input
+          v-model="formData[field.name]"
+          type="text"
+          class="form-input"
+          :placeholder="field.placeholder"
+          readonly
+        />
+        <div v-if="formData[field.name]" class="image-preview">
+          <img :src="formData[field.name]" alt="Preview" />
+        </div>
+      </div>
+      
+      <!-- Textarea for multiline text -->
       <textarea
-        v-if="field.multiline"
+        v-else-if="field.multiline"
         :id="field.name"
         v-model="formData[field.name]"
         class="form-textarea"
@@ -15,6 +38,7 @@
         :placeholder="field.placeholder"
       ></textarea>
       
+      <!-- Regular text input -->
       <input
         v-else
         :id="field.name"
@@ -50,6 +74,7 @@ interface FieldConfig {
   required?: boolean
   multiline?: boolean
   rows?: number
+  type?: 'text' | 'qrcode' | 'image'
 }
 
 const fieldLabels: Record<string, FieldConfig> = {
@@ -62,28 +87,32 @@ const fieldLabels: Record<string, FieldConfig> = {
   comment: { name: 'comment', label: 'Kommentar', placeholder: 'Zusätzliche Informationen...' },
 }
 
-// Get all unique field names from all templates
+// Get all unique field names from all templates with their types
 const formFields = computed(() => {
   const templates = getAllTemplates()
-  const fieldNames = new Set<string>()
+  const fieldMap = new Map<string, string>() // name -> type
   
-  // Collect all field names from all templates
+  // Collect all field names and types from all templates
   Object.values(templates).forEach(template => {
     template.schemas[0]?.forEach(schema => {
-      // Skip non-text fields like rectangles, images, etc.
-      if (schema.type === 'text' || schema.type === 'qrcode') {
-        fieldNames.add(schema.name)
+      // Include text, qrcode, and image fields
+      // Skip only decorative elements like rectangles, lines
+      if (schema.type === 'text' || schema.type === 'qrcode' || schema.type === 'image') {
+        fieldMap.set(schema.name, schema.type)
       }
     })
   })
   
   // Convert to array and map to field configs
-  return Array.from(fieldNames)
-    .filter(name => name !== 'header-bg') // Skip background elements
-    .map(name => fieldLabels[name] || {
-      name,
-      label: name.charAt(0).toUpperCase() + name.slice(1),
-      placeholder: `${name}...`
+  return Array.from(fieldMap.entries())
+    .filter(([name]) => name !== 'header-bg') // Skip background elements
+    .map(([name, type]) => {
+      const config = fieldLabels[name] || {
+        name,
+        label: name.charAt(0).toUpperCase() + name.slice(1),
+        placeholder: type === 'image' ? 'Bild-URL oder Data-URL...' : `${name}...`
+      }
+      return { ...config, type: type as 'text' | 'qrcode' | 'image' }
     })
     .sort((a, b) => {
       // Sort: required fields first, then alphabetically
@@ -110,6 +139,20 @@ watch(
   { deep: true, immediate: true }
 )
 
+// Handle image file upload
+const handleImageUpload = (event: Event, fieldName: string) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const dataUrl = e.target?.result as string
+    formData[fieldName] = dataUrl
+  }
+  reader.readAsDataURL(file)
+}
+
 const loadExample = () => {
   formData.title = 'Weihnachtsgottesdienst'
   formData.datetime = '24.12.2025, 10:00 Uhr'
@@ -122,6 +165,15 @@ const loadExample = () => {
   if (formData.comment !== undefined) {
     formData.comment = 'Bitte um Anmeldung bis 20.12.'
   }
+  
+  // Set example image if image field exists
+  Object.keys(formData).forEach(key => {
+    const field = formFields.value.find(f => f.name === key)
+    if (field?.type === 'image' && !formData[key]) {
+      // Use a placeholder image
+      formData[key] = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5CaWxkPC90ZXh0Pjwvc3ZnPg=='
+    }
+  })
 }
 
 // Load example data on mount for demo
@@ -200,5 +252,55 @@ defineExpose({
 
 .btn-secondary:hover {
   background-color: #e5e7eb;
+}
+
+.field-type-badge {
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+}
+
+.image-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-file-input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.form-file-input::-webkit-file-upload-button {
+  padding: 0.375rem 0.75rem;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+
+.form-file-input::-webkit-file-upload-button:hover {
+  background: #e5e7eb;
+}
+
+.image-preview {
+  max-width: 200px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 </style>
