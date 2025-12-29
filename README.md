@@ -91,6 +91,70 @@ This command will:
 
 You can find the package in the `releases` directory.
 
+## Features
+
+### Template Administration
+
+The extension includes a template administration interface accessible via the "Admin – Vorlagen" tab. This allows you to:
+
+- **Edit Templates**: Use the integrated pdfme Designer to modify template layouts
+- **Template Synchronization**: Keep template properties consistent across different formats
+- **Import/Export**: Share template sets as ZIP files with automatic timestamping
+
+#### Template Synchronization
+
+The sync feature helps maintain consistency across multiple template formats (A5 portrait, A5 landscape, etc.):
+
+1. **Select Main Template**: Choose which template serves as the source of truth
+2. **View Differences**: See property differences between templates (colors, alignment, etc.)
+3. **Sync Properties**: Apply properties from the main template to all other templates
+
+The sync panel shows:
+- Number of differences per template
+- Detailed diff view showing which properties differ
+- One-click sync to apply changes
+
+Properties that can be synced include:
+- `fontColor` - Text color
+- `color` - Background/border color
+- `alignment` - Text alignment
+- `type` - Field type
+- `borderWidth` - Border width
+
+**Important**: When you sync templates, missing fields from the main template are automatically added to other templates. This ensures all templates have the same fields.
+
+#### Template Persistence
+
+All template changes are automatically saved to browser localStorage:
+
+- **Custom Badge**: Shows when using modified templates
+- **Default Badge**: Shows when using original templates
+- **Reset Button**: Appears when using custom templates, allows reverting to defaults
+- **Automatic Save**: Changes are saved when:
+  - Editing a template in the Designer
+  - Synchronizing templates
+  - Uploading a template set
+
+The Flyer Generator automatically uses your custom templates if available, falling back to defaults otherwise.
+
+#### Import/Export Template Sets
+
+**Export (Download)**:
+- Click "ZIP herunterladen" to export all current templates
+- Filename format: `{name}-{custom/standard}-{date}.zip`
+- Example: `default-church-flyers-custom-2025-12-29.zip`
+- Contains: `manifest.json` + individual template JSON files
+
+**Import (Upload)**:
+- Click "ZIP hochladen" to import a template set
+- Automatically saves to localStorage
+- Replaces all current templates
+- Supports both manifest-based and individual JSON files
+
+**Reset**:
+- "Zurücksetzen" button appears when using custom templates
+- Clears localStorage and restores factory defaults
+
 ## API
 
 Following endpoints are available. Permissions are possible per route. Types are documented in `ct-types.d.ts` (CustomModuleCreate, CustomModuleDataCategoryCreate, CustomModuleDataValueCreate)

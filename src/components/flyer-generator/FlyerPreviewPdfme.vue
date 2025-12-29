@@ -15,7 +15,7 @@ import type { FlyerData, LayoutConfig } from '../../types/flyer'
 import { getTemplate, flyerDataToInput } from '../../services/pdfme-templates'
 
 const props = defineProps<{
-  data: FlyerData
+  data: FlyerData | Record<string, string>
   config: LayoutConfig
 }>()
 

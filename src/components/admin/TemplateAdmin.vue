@@ -7,13 +7,28 @@
     <div class="admin-content">
       <!-- Template Set Management -->
       <section class="section-card">
-        <h2 class="section-title">Aktives Vorlagenset</h2>
+        <h2 class="section-title">Vorlagenset verwalten</h2>
         <div class="template-set-actions">
-          <span class="template-set-name">{{ templateSetName }}</span>
+          <span class="template-set-name">
+            {{ templateSetName }}
+            <span v-if="usingCustomTemplates" class="badge badge-warning">Angepasst</span>
+            <span v-else class="badge badge-success">Standard</span>
+          </span>
           <label class="btn btn-secondary">
-            Hochladen...
+            ZIP hochladen
             <input type="file" accept=".zip" @change="handleUploadTemplateSet" hidden />
           </label>
+          <button type="button" class="btn btn-secondary" @click="downloadTemplateSet">
+            ZIP herunterladen
+          </button>
+          <button 
+            v-if="usingCustomTemplates" 
+            type="button" 
+            class="btn btn-secondary"
+            @click="resetToDefaults"
+          >
+            Zurücksetzen
+          </button>
         </div>
       </section>
 
@@ -27,14 +42,24 @@
                 <th>Name</th>
                 <th>Format</th>
                 <th>Felder</th>
+                <th>Sync Status</th>
                 <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="entry in templateEntries" :key="entry.id">
-                <td>{{ entry.id }}</td>
+                <td>
+                  {{ entry.id }}
+                  <span v-if="entry.id === mainTemplateId" class="badge badge-main">Main</span>
+                </td>
                 <td>{{ entry.name }}</td>
                 <td class="fields-cell">{{ entry.fields.join(', ') }}</td>
+                <td>
+                  <span v-if="entry.id !== mainTemplateId" class="sync-status">
+                    <span v-if="getDiffCount(entry.id) === 0" class="badge badge-success">✓ Synced</span>
+                    <span v-else class="badge badge-warning">{{ getDiffCount(entry.id) }} diffs</span>
+                  </span>
+                </td>
                 <td>
                   <button
                     type="button"
@@ -53,9 +78,55 @@
           <button type="button" class="btn btn-secondary" @click="addNewLayout">
             Neues Layout hinzufügen
           </button>
-          <button type="button" class="btn btn-secondary" @click="downloadTemplateSet">
-            Vorlagenset als ZIP herunterladen
+          <button type="button" class="btn btn-primary" @click="toggleSyncPanel">
+            {{ showSyncPanel ? 'Sync Panel schließen' : 'Sync Panel öffnen' }}
           </button>
+        </div>
+        
+        <div v-if="usingCustomTemplates" class="info-note">
+          ℹ️ Änderungen werden automatisch gespeichert und im Flyer-Generator verwendet
+        </div>
+      </section>
+
+      <!-- Sync Panel -->
+      <section v-if="showSyncPanel" class="section-card sync-panel">
+        <h2 class="section-title">Template Synchronization</h2>
+        
+        <div class="sync-controls">
+          <div class="sync-control-group">
+            <label>Main Template:</label>
+            <select v-model="mainTemplateId" @change="calculateDiffs" class="sync-select">
+              <option v-for="entry in templateEntries" :key="entry.id" :value="entry.id">
+                {{ entry.id }} - {{ entry.name }}
+              </option>
+            </select>
+          </div>
+          
+          <button type="button" class="btn btn-primary" @click="syncFromMain">
+            Sync All from Main
+          </button>
+        </div>
+
+        <div class="diffs-container">
+          <div v-for="entry in templateEntries" :key="entry.id" class="diff-section">
+            <div v-if="entry.id !== mainTemplateId && templateDiffs[entry.id]">
+              <h3 class="diff-title">
+                {{ entry.id }}
+                <span class="diff-count">{{ templateDiffs[entry.id].length }} differences</span>
+              </h3>
+              
+              <div v-if="templateDiffs[entry.id].length === 0" class="diff-empty">
+                ✓ No differences - template is in sync
+              </div>
+              
+              <div v-else class="diff-list">
+                <div v-for="(diff, idx) in templateDiffs[entry.id]" :key="idx" class="diff-item" :class="`diff-${diff.type}`">
+                  <span class="diff-type-badge">{{ diff.type }}</span>
+                  <span class="diff-message">{{ diff.message }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -94,6 +165,12 @@ import JSZip from 'jszip'
 import type { LayoutFormat, TemplateSetEntry, TemplateSet } from '../../types/flyer'
 import { LAYOUT_CONFIGS } from '../../types/flyer'
 import { getTemplate, getAllTemplates } from '../../services/pdfme-templates'
+import { 
+  TemplateSyncService, 
+  type FieldDiff,
+  type TemplateSet as SyncTemplateSet 
+} from '../../services/template-sync'
+import { templateStorage } from '../../services/template-storage'
 
 // State
 const templateSetName = ref('default-church-flyers')
@@ -106,13 +183,19 @@ const editingTemplateId = ref<LayoutFormat | null>(null)
 const editorContainer = ref<HTMLDivElement | null>(null)
 let designer: Designer | null = null
 
+// Sync state
+const syncService = new TemplateSyncService()
+const mainTemplateId = ref<LayoutFormat>('a5-portrait')
+const templateDiffs = ref<Record<string, FieldDiff[]>>({})
+const showSyncPanel = ref(false)
+
 const statusClass = computed(() => ({
   'status-info': statusType.value === 'info',
   'status-success': statusType.value === 'success',
   'status-error': statusType.value === 'error',
 }))
 
-// Initialize with default templates
+// Initialize with templates (stored or default)
 const initializeTemplates = () => {
   const allTemplates = getAllTemplates()
   templateEntries.value = Object.entries(allTemplates).map(([id, template]) => {
@@ -129,6 +212,9 @@ const initializeTemplates = () => {
 }
 
 initializeTemplates()
+
+// Check if using custom templates
+const usingCustomTemplates = ref(templateStorage.hasCustomTemplates())
 
 // Status helper
 const setStatus = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
@@ -201,10 +287,41 @@ const saveTemplate = () => {
       fields,
       template: updatedTemplate,
     }
+    
+    // Save to storage
+    saveTemplatesToStorage()
     setStatus('Template gespeichert', 'success')
   }
 
   closeEditor()
+}
+
+// Save all templates to storage
+const saveTemplatesToStorage = () => {
+  try {
+    const templates: Record<LayoutFormat, Template> = {}
+    for (const entry of templateEntries.value) {
+      templates[entry.id] = entry.template
+    }
+    templateStorage.saveTemplates(templates)
+    usingCustomTemplates.value = true
+  } catch (error) {
+    console.error('Failed to save templates:', error)
+    setStatus('Fehler beim Speichern', 'error')
+  }
+}
+
+// Reset to default templates
+const resetToDefaults = () => {
+  if (!confirm('Möchten Sie wirklich alle Änderungen verwerfen und zu den Standard-Templates zurückkehren?')) {
+    return
+  }
+  
+  templateStorage.clearTemplates()
+  usingCustomTemplates.value = false
+  initializeTemplates()
+  calculateDiffs()
+  setStatus('Templates auf Standard zurückgesetzt', 'success')
 }
 
 // Close editor
@@ -273,7 +390,14 @@ const handleUploadTemplateSet = async (event: Event) => {
 
     if (newEntries.length > 0) {
       templateEntries.value = newEntries
-      setStatus(`${newEntries.length} Vorlagen geladen`, 'success')
+      saveTemplatesToStorage()
+      
+      // Recalculate diffs if sync panel is open
+      if (showSyncPanel.value) {
+        calculateDiffs()
+      }
+      
+      setStatus(`${newEntries.length} Vorlagen geladen und gespeichert`, 'success')
     } else {
       setStatus('Keine gültigen Vorlagen gefunden', 'error')
     }
@@ -316,13 +440,20 @@ const downloadTemplateSet = async () => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${templateSetName.value}.zip`
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    const customSuffix = usingCustomTemplates.value ? '-custom' : ''
+    link.download = `${templateSetName.value}${customSuffix}-${timestamp}.zip`
+    
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    setStatus('Vorlagenset heruntergeladen', 'success')
+    const templateCount = templateEntries.value.length
+    const customNote = usingCustomTemplates.value ? ' (angepasst)' : ''
+    setStatus(`${templateCount} Templates heruntergeladen${customNote}`, 'success')
   } catch (error) {
     console.error('Failed to download template set:', error)
     setStatus('Fehler beim Herunterladen', 'error')
@@ -332,6 +463,75 @@ const downloadTemplateSet = async () => {
 // Add new layout (placeholder)
 const addNewLayout = () => {
   setStatus('Funktion noch nicht implementiert', 'info')
+}
+
+// Sync functionality
+const buildTemplateSet = (): SyncTemplateSet => {
+  const templates: Record<string, Template> = {}
+  for (const entry of templateEntries.value) {
+    templates[entry.id] = entry.template
+  }
+  
+  return {
+    version: '1.0',
+    name: templateSetName.value,
+    mainTemplate: mainTemplateId.value,
+    templates,
+    metadata: {
+      updated: new Date().toISOString(),
+    },
+  }
+}
+
+const calculateDiffs = () => {
+  const templateSet = buildTemplateSet()
+  const diffs: Record<string, FieldDiff[]> = {}
+  
+  for (const entry of templateEntries.value) {
+    if (entry.id !== mainTemplateId.value) {
+      diffs[entry.id] = syncService.getDiff(templateSet, entry.id)
+    }
+  }
+  
+  templateDiffs.value = diffs
+}
+
+const toggleSyncPanel = () => {
+  if (!showSyncPanel.value) {
+    calculateDiffs()
+  }
+  showSyncPanel.value = !showSyncPanel.value
+}
+
+const syncFromMain = () => {
+  try {
+    const templateSet = buildTemplateSet()
+    const synced = syncService.syncFromMain(templateSet, {
+      syncBasePdf: false,
+      addMissingFields: true,
+    })
+    
+    // Update template entries with synced templates
+    for (const entry of templateEntries.value) {
+      if (entry.id !== mainTemplateId.value && synced.templates[entry.id]) {
+        entry.template = synced.templates[entry.id]
+        const fields = entry.template.schemas[0]?.map((s) => s.name) || []
+        entry.fields = fields
+      }
+    }
+    
+    // Save to storage
+    saveTemplatesToStorage()
+    calculateDiffs()
+    setStatus('Templates synchronized', 'success')
+  } catch (error) {
+    console.error('Sync failed:', error)
+    setStatus('Fehler beim Synchronisieren', 'error')
+  }
+}
+
+const getDiffCount = (templateId: string): number => {
+  return templateDiffs.value[templateId]?.length || 0
 }
 
 // Cleanup
@@ -541,5 +741,179 @@ onUnmounted(() => {
 .editor-container {
   flex: 1;
   overflow: hidden;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.badge-main {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Sync Panel */
+.sync-panel {
+  background: #f9fafb;
+  border: 2px solid #3b82f6;
+}
+
+.sync-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.375rem;
+}
+
+.sync-control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.sync-control-group label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.sync-select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  flex: 1;
+  max-width: 300px;
+}
+
+.diffs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.diff-section {
+  background: white;
+  border-radius: 0.375rem;
+  padding: 1rem;
+}
+
+.diff-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.diff-count {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.diff-empty {
+  padding: 0.75rem;
+  background: #ecfdf5;
+  color: #065f46;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.diff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.diff-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.diff-missing {
+  background: #fef2f2;
+  border-left: 3px solid #dc2626;
+}
+
+.diff-different {
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+}
+
+.diff-extra {
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.diff-type-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  min-width: 80px;
+  text-align: center;
+}
+
+.diff-missing .diff-type-badge {
+  background: #dc2626;
+  color: white;
+}
+
+.diff-different .diff-type-badge {
+  background: #f59e0b;
+  color: white;
+}
+
+.diff-extra .diff-type-badge {
+  background: #3b82f6;
+  color: white;
+}
+
+.diff-message {
+  font-family: monospace;
+  color: #374151;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+}
+
+.info-note {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  color: #1e40af;
 }
 </style>

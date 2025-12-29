@@ -1,5 +1,6 @@
 import type { Template, Schema } from '@pdfme/common'
 import type { LayoutFormat, FlyerData } from '../types/flyer'
+import { templateStorage } from './template-storage'
 
 // Base schema fields used across all templates
 const createTextSchema = (
@@ -194,8 +195,22 @@ const createA6LongLandscapeTemplate = (): Template => {
   }
 }
 
-// Template factory
+// Get default templates (factory functions)
+const getDefaultTemplates = (): Record<LayoutFormat, Template> => ({
+  'a5-portrait': createA5PortraitTemplate(),
+  'a5-landscape': createA5LandscapeTemplate(),
+  'a6-long-portrait': createA6LongPortraitTemplate(),
+  'a6-long-landscape': createA6LongLandscapeTemplate(),
+})
+
+// Template factory - uses stored templates if available
 export const getTemplate = (format: LayoutFormat): Template => {
+  const storedTemplates = templateStorage.loadTemplates()
+  if (storedTemplates && storedTemplates[format]) {
+    return storedTemplates[format]
+  }
+
+  // Fall back to default templates
   switch (format) {
     case 'a5-portrait':
       return createA5PortraitTemplate()
@@ -210,23 +225,44 @@ export const getTemplate = (format: LayoutFormat): Template => {
   }
 }
 
-// Get all templates
-export const getAllTemplates = (): Record<LayoutFormat, Template> => ({
-  'a5-portrait': createA5PortraitTemplate(),
-  'a5-landscape': createA5LandscapeTemplate(),
-  'a6-long-portrait': createA6LongPortraitTemplate(),
-  'a6-long-landscape': createA6LongLandscapeTemplate(),
-})
+// Get all templates - uses stored templates if available
+export const getAllTemplates = (): Record<LayoutFormat, Template> => {
+  const storedTemplates = templateStorage.loadTemplates()
+  if (storedTemplates) {
+    return storedTemplates
+  }
+  
+  // Fall back to default templates
+  return getDefaultTemplates()
+}
 
-// Convert FlyerData to pdfme input format
-export const flyerDataToInput = (data: FlyerData): Record<string, string> => ({
-  title: data.title || '',
-  datetime: data.datetime || '',
-  location: data.location || '',
-  speaker: data.speaker || '',
-  desc: data.desc || '',
-  qr: data.qr || 'https://example.com',
-})
+// Convert FlyerData to pdfme input format (now supports dynamic fields)
+export const flyerDataToInput = (data: FlyerData | Record<string, string>): Record<string, string> => {
+  // If data is already a Record<string, string>, return it
+  if (!('title' in data) && !('datetime' in data)) {
+    return data as Record<string, string>
+  }
+  
+  // Otherwise, convert FlyerData to Record<string, string>
+  const flyerData = data as FlyerData
+  const result: Record<string, string> = {
+    title: flyerData.title || '',
+    datetime: flyerData.datetime || '',
+    location: flyerData.location || '',
+    speaker: flyerData.speaker || '',
+    desc: flyerData.desc || '',
+    qr: flyerData.qr || 'https://example.com',
+  }
+  
+  // Add any additional fields from data
+  Object.keys(data).forEach(key => {
+    if (!(key in result)) {
+      result[key] = (data as any)[key] || ''
+    }
+  })
+  
+  return result
+}
 
 // Get all layout formats
 export const getAllFormats = (): LayoutFormat[] => [

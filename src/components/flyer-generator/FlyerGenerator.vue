@@ -89,25 +89,11 @@ import type { TemplateSet } from '../../services/template-sync'
 // Layout configurations
 const layoutConfigs = Object.values(LAYOUT_CONFIGS)
 
-// Form data
-const flyerData = reactive<FlyerData>({
-  title: '',
-  datetime: '',
-  location: '',
-  speaker: '',
-  desc: '',
-  qr: '',
-})
+// Form data (now supports dynamic fields)
+const flyerData = reactive<Record<string, string>>({})
 
 // Preview data (updated on button click)
-const previewData = reactive<FlyerData>({
-  title: '',
-  datetime: '',
-  location: '',
-  speaker: '',
-  desc: '',
-  qr: '',
-})
+const previewData = reactive<Record<string, string>>({})
 
 // State
 const isGenerating = ref(false)
@@ -132,7 +118,7 @@ function loadTemplateSet(templateSet: TemplateSet) {
 }
 
 // Handle form updates
-const handleFormUpdate = (data: FlyerData) => {
+const handleFormUpdate = (data: Record<string, string>) => {
   Object.assign(flyerData, data)
   // Don't auto-update preview - user must click button
 }
@@ -191,7 +177,7 @@ const downloadZip = async () => {
 
 // Save project to JSON file
 const saveProject = () => {
-  const project: FlyerProject = {
+  const project = {
     version: '1.0',
     data: { ...flyerData },
     createdAt: new Date().toISOString(),
@@ -220,7 +206,7 @@ const loadProject = (event: Event) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     try {
-      const project = JSON.parse(e.target?.result as string) as FlyerProject
+      const project = JSON.parse(e.target?.result as string)
       if (project.data) {
         Object.assign(flyerData, project.data)
         Object.assign(previewData, project.data)

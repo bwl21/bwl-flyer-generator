@@ -1,69 +1,28 @@
 <template>
   <div class="flyer-form">
-    <div class="form-group">
-      <label for="title" class="form-label">Titel *</label>
-      <input
-        id="title"
-        v-model="formData.title"
-        type="text"
-        class="form-input"
-        placeholder="z.B. Weihnachtsgottesdienst"
-        required
-      />
-    </div>
-
-    <div class="form-group">
-      <label for="datetime" class="form-label">Datum / Uhrzeit</label>
-      <input
-        id="datetime"
-        v-model="formData.datetime"
-        type="text"
-        class="form-input"
-        placeholder="z.B. 24.12.2025, 10:00 Uhr"
-      />
-    </div>
-
-    <div class="form-group">
-      <label for="location" class="form-label">Ort</label>
-      <input
-        id="location"
-        v-model="formData.location"
-        type="text"
-        class="form-input"
-        placeholder="z.B. Ev. Kirche Korntal"
-      />
-    </div>
-
-    <div class="form-group">
-      <label for="speaker" class="form-label">Prediger / Sprecher</label>
-      <input
-        id="speaker"
-        v-model="formData.speaker"
-        type="text"
-        class="form-input"
-        placeholder="z.B. Pfarrer Müller"
-      />
-    </div>
-
-    <div class="form-group">
-      <label for="desc" class="form-label">Beschreibung</label>
+    <div v-for="field in formFields" :key="field.name" class="form-group">
+      <label :for="field.name" class="form-label">
+        {{ field.label }}
+        <span v-if="field.required">*</span>
+      </label>
+      
       <textarea
-        id="desc"
-        v-model="formData.desc"
+        v-if="field.multiline"
+        :id="field.name"
+        v-model="formData[field.name]"
         class="form-textarea"
-        rows="4"
-        placeholder="Herzliche Einladung zum Gottesdienst..."
+        :rows="field.rows || 4"
+        :placeholder="field.placeholder"
       ></textarea>
-    </div>
-
-    <div class="form-group">
-      <label for="qr" class="form-label">QR-Inhalt (z.B. URL)</label>
+      
       <input
-        id="qr"
-        v-model="formData.qr"
+        v-else
+        :id="field.name"
+        v-model="formData[field.name]"
         type="text"
         class="form-input"
-        placeholder="https://gemeinde.example/anmeldung"
+        :placeholder="field.placeholder"
+        :required="field.required"
       />
     </div>
 
@@ -76,20 +35,70 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
-import type { FlyerData } from '../../types/flyer'
+import { reactive, watch, computed } from 'vue'
+import { getAllTemplates } from '../../services/pdfme-templates'
 
 const emit = defineEmits<{
-  update: [data: FlyerData]
+  update: [data: Record<string, string>]
 }>()
 
-const formData = reactive<FlyerData>({
-  title: '',
-  datetime: '',
-  location: '',
-  speaker: '',
-  desc: '',
-  qr: '',
+// Field configuration with labels and placeholders
+interface FieldConfig {
+  name: string
+  label: string
+  placeholder: string
+  required?: boolean
+  multiline?: boolean
+  rows?: number
+}
+
+const fieldLabels: Record<string, FieldConfig> = {
+  title: { name: 'title', label: 'Titel', placeholder: 'z.B. Weihnachtsgottesdienst', required: true },
+  datetime: { name: 'datetime', label: 'Datum / Uhrzeit', placeholder: 'z.B. 24.12.2025, 10:00 Uhr' },
+  location: { name: 'location', label: 'Ort', placeholder: 'z.B. Ev. Kirche Korntal' },
+  speaker: { name: 'speaker', label: 'Prediger / Sprecher', placeholder: 'z.B. Pfarrer Müller' },
+  desc: { name: 'desc', label: 'Beschreibung', placeholder: 'Herzliche Einladung zum Gottesdienst...', multiline: true, rows: 4 },
+  qr: { name: 'qr', label: 'QR-Inhalt (z.B. URL)', placeholder: 'https://gemeinde.example/anmeldung' },
+  comment: { name: 'comment', label: 'Kommentar', placeholder: 'Zusätzliche Informationen...' },
+}
+
+// Get all unique field names from all templates
+const formFields = computed(() => {
+  const templates = getAllTemplates()
+  const fieldNames = new Set<string>()
+  
+  // Collect all field names from all templates
+  Object.values(templates).forEach(template => {
+    template.schemas[0]?.forEach(schema => {
+      // Skip non-text fields like rectangles, images, etc.
+      if (schema.type === 'text' || schema.type === 'qrcode') {
+        fieldNames.add(schema.name)
+      }
+    })
+  })
+  
+  // Convert to array and map to field configs
+  return Array.from(fieldNames)
+    .filter(name => name !== 'header-bg') // Skip background elements
+    .map(name => fieldLabels[name] || {
+      name,
+      label: name.charAt(0).toUpperCase() + name.slice(1),
+      placeholder: `${name}...`
+    })
+    .sort((a, b) => {
+      // Sort: required fields first, then alphabetically
+      if (a.required && !b.required) return -1
+      if (!a.required && b.required) return 1
+      return a.name.localeCompare(b.name)
+    })
+})
+
+// Initialize formData with all fields
+const formData = reactive<Record<string, string>>({})
+
+// Initialize all fields
+formFields.value.forEach(field => {
+  formData[field.name] = ''
 })
 
 // Emit updates when form data changes
@@ -106,9 +115,13 @@ const loadExample = () => {
   formData.datetime = '24.12.2025, 10:00 Uhr'
   formData.location = 'Ev. Kirche Korntal'
   formData.speaker = 'Pfarrer Müller'
-  formData.desc =
-    'Herzliche Einladung zum festlichen Weihnachtsgottesdienst mit Krippenspiel der Kinder und anschließendem Kirchenkaffee.'
+  formData.desc = 'Herzliche Einladung zum festlichen Weihnachtsgottesdienst mit Krippenspiel der Kinder und anschließendem Kirchenkaffee.'
   formData.qr = 'https://gemeinde.example/weihnachten'
+  
+  // Set example data for any additional fields
+  if (formData.comment !== undefined) {
+    formData.comment = 'Bitte um Anmeldung bis 20.12.'
+  }
 }
 
 // Load example data on mount for demo
@@ -116,7 +129,7 @@ loadExample()
 
 // Expose method to set data externally
 defineExpose({
-  setData: (data: Partial<FlyerData>) => {
+  setData: (data: Partial<Record<string, string>>) => {
     Object.assign(formData, data)
   },
   getData: () => ({ ...formData }),

@@ -18,6 +18,7 @@ export interface SyncOptions {
   fields?: string[]
   templates?: string[]
   syncBasePdf?: boolean
+  addMissingFields?: boolean
 }
 
 export interface FieldDiff {
@@ -84,7 +85,8 @@ export class TemplateSyncService {
         const mainPage = mainTemplate.schemas[pageIdx]
         if (!mainPage) return page
 
-        return page.map((field: any) => {
+        // Update existing fields
+        const updatedPage = page.map((field: any) => {
           // Find corresponding field in main template
           const mainField = mainPage.find((f) => f.name === field.name)
           if (!mainField) return field
@@ -104,6 +106,23 @@ export class TemplateSyncService {
 
           return synced
         })
+
+        // Add missing fields if requested
+        if (options.addMissingFields) {
+          const existingFieldNames = updatedPage.map((f: any) => f.name)
+          for (const mainField of mainPage) {
+            if (!existingFieldNames.includes(mainField.name)) {
+              // Filter fields if specified
+              if (options.fields && !options.fields.includes(mainField.name)) {
+                continue
+              }
+              // Clone the field from main template
+              updatedPage.push(JSON.parse(JSON.stringify(mainField)))
+            }
+          }
+        }
+
+        return updatedPage
       })
     }
 
