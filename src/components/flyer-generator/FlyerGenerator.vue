@@ -17,12 +17,27 @@
       @select="loadTemplateSet"
     />
 
+    <!-- Appointment Picker Modal -->
+    <div v-if="showAppointmentPicker" class="modal-overlay" @click="showAppointmentPicker = false">
+      <div @click.stop>
+        <AppointmentPicker
+          @close="showAppointmentPicker = false"
+          @select="handleAppointmentSelect"
+        />
+      </div>
+    </div>
+
     <main class="generator-main">
       <!-- Form Section -->
       <section class="form-section">
         <div class="section-card">
-          <h2 class="section-title">Veranstaltungsdaten</h2>
-          <FlyerForm @update="handleFormUpdate" />
+          <div class="section-header">
+            <h2 class="section-title">Veranstaltungsdaten</h2>
+            <button type="button" class="btn btn-secondary btn-sm" @click="showAppointmentPicker = true">
+              📅 Termin laden
+            </button>
+          </div>
+          <FlyerForm ref="flyerFormRef" @update="handleFormUpdate" />
         </div>
 
         <!-- Actions -->
@@ -81,10 +96,16 @@ import { ref, reactive, computed } from 'vue'
 import FlyerForm from './FlyerForm.vue'
 import FlyerPreviewPdfme from './FlyerPreviewPdfme.vue'
 import TemplateSelectorModal from '../TemplateSelectorModal.vue'
+import AppointmentPicker from './AppointmentPicker.vue'
 import { generateAndDownloadZip, type ZipProgress } from '../../services/zip-download'
 import type { FlyerData, LayoutConfig, FlyerProject } from '../../types/flyer'
 import { LAYOUT_CONFIGS } from '../../types/flyer'
 import type { TemplateSet } from '../../services/template-sync'
+import type { AppointmentBase, AppointmentCalculated } from '../../ct-types'
+import { templateStorage } from '../../services/template-storage'
+import { applyMapping, DEFAULT_MAPPING } from '../../services/appointment-mapper'
+
+type Appointment = AppointmentBase | AppointmentCalculated
 
 // Layout configurations
 const layoutConfigs = Object.values(LAYOUT_CONFIGS)
@@ -110,11 +131,38 @@ const statusClass = computed(() => ({
 const showTemplateSelector = ref(false)
 const currentTemplateSetName = ref('Church Flyers Default')
 
+// Appointment picker
+const showAppointmentPicker = ref(false)
+const flyerFormRef = ref<InstanceType<typeof FlyerForm> | null>(null)
+
 function loadTemplateSet(templateSet: TemplateSet) {
   currentTemplateSetName.value = templateSet.name
   showTemplateSelector.value = false
   setStatus(`Vorlagenset "${templateSet.name}" geladen`, 'success')
   // TODO: Update templates in LAYOUT_CONFIGS
+}
+
+// Handle appointment selection
+const handleAppointmentSelect = (appointment: Appointment) => {
+  const base = 'base' in appointment ? appointment.base : appointment
+  
+  // Get mapping from first template (a5-portrait as default)
+  // In the future, we could let the user choose which template's mapping to use
+  const mapping = templateStorage.getMapping('a5-portrait') || DEFAULT_MAPPING
+  
+  // Apply mapping to convert appointment data to form data
+  const appointmentData = applyMapping(appointment, mapping)
+  
+  // Update form data
+  Object.assign(flyerData, appointmentData)
+  Object.assign(previewData, appointmentData)
+  
+  // Update form component if available
+  if (flyerFormRef.value) {
+    flyerFormRef.value.setData(appointmentData)
+  }
+  
+  setStatus(`Termin "${base.title}" geladen`, 'success')
 }
 
 // Handle form updates
@@ -382,5 +430,36 @@ const loadProject = (event: Event) => {
   gap: 1.5rem;
   justify-content: center;
   align-items: flex-start;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* Section header with button */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header .section-title {
+  margin: 0;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
 }
 </style>

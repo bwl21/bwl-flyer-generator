@@ -137,6 +137,30 @@ All template changes are automatically saved to browser localStorage:
 
 The Flyer Generator automatically uses your custom templates if available, falling back to defaults otherwise.
 
+#### Appointment Mapping
+
+Each template can have its own mapping configuration to automatically fill form fields from ChurchTools appointments:
+
+**Configure Mapping**:
+1. Go to Admin → Vorlagen
+2. Click "Mapping" button for a template
+3. Map appointment fields to template fields:
+   - `title` → Titel
+   - `datetime` → Datum + Uhrzeit (formatted)
+   - `description` → Beschreibung
+   - `address` → Adresse (komplett)
+   - `link` → Link
+   - And many more...
+4. Click "Speichern"
+
+**Use Mapping**:
+1. In Flyer Generator, click "📅 Termin laden"
+2. Search and select an appointment
+3. Form fields are automatically filled based on mapping
+4. Adjust data if needed and generate PDFs
+
+The mapping is stored with the template in localStorage and persists across sessions.
+
 #### Import/Export Template Sets
 
 **Export (Download)**:

@@ -205,7 +205,7 @@ const getDefaultTemplates = (): Record<LayoutFormat, Template> => ({
 
 // Template factory - uses stored templates if available
 export const getTemplate = (format: LayoutFormat): Template => {
-  const storedTemplates = templateStorage.loadTemplates()
+  const storedTemplates = templateStorage.loadTemplatesOnly()
   if (storedTemplates && storedTemplates[format]) {
     return storedTemplates[format]
   }
@@ -227,7 +227,7 @@ export const getTemplate = (format: LayoutFormat): Template => {
 
 // Get all templates - uses stored templates if available
 export const getAllTemplates = (): Record<LayoutFormat, Template> => {
-  const storedTemplates = templateStorage.loadTemplates()
+  const storedTemplates = templateStorage.loadTemplatesOnly()
   if (storedTemplates) {
     return storedTemplates
   }

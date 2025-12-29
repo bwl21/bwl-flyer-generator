@@ -61,13 +61,22 @@
                   </span>
                 </td>
                 <td>
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    @click="openEditor(entry.id)"
-                  >
-                    Bearbeiten
-                  </button>
+                  <div class="action-buttons">
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      @click="openEditor(entry.id)"
+                    >
+                      Bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="openMappingEditor(entry.id)"
+                    >
+                      Mapping
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -153,6 +162,43 @@
         <div ref="editorContainer" class="editor-container"></div>
       </div>
     </div>
+
+    <!-- Mapping Editor Modal -->
+    <div v-if="mappingEditorVisible" class="editor-modal">
+      <div class="mapping-modal-content">
+        <div class="editor-header">
+          <h3>Appointment-Mapping: {{ editingMappingId }}</h3>
+          <div class="editor-actions">
+            <button type="button" class="btn btn-primary" @click="saveMappingConfig">
+              Speichern
+            </button>
+            <button type="button" class="btn btn-secondary" @click="closeMappingEditor">
+              Schließen
+            </button>
+          </div>
+        </div>
+        <div class="mapping-editor-content">
+          <p class="mapping-description">
+            Ordnen Sie ChurchTools-Termin-Daten den Template-Feldern zu:
+          </p>
+          <div class="mapping-list">
+            <div v-for="field in currentTemplateFields" :key="field" class="mapping-row">
+              <label class="mapping-field-label">{{ field }}</label>
+              <select v-model="currentMapping[field]" class="mapping-select">
+                <option value="">-- Nicht zuordnen --</option>
+                <option 
+                  v-for="(label, key) in appointmentFieldLabels" 
+                  :key="key" 
+                  :value="key"
+                >
+                  {{ label }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -171,6 +217,10 @@ import {
   type TemplateSet as SyncTemplateSet 
 } from '../../services/template-sync'
 import { templateStorage } from '../../services/template-storage'
+import { 
+  APPOINTMENT_FIELD_LABELS,
+  type FieldMapping 
+} from '../../services/appointment-mapper'
 
 // State
 const templateSetName = ref('default-church-flyers')
@@ -188,6 +238,13 @@ const syncService = new TemplateSyncService()
 const mainTemplateId = ref<LayoutFormat>('a5-portrait')
 const templateDiffs = ref<Record<string, FieldDiff[]>>({})
 const showSyncPanel = ref(false)
+
+// Mapping editor state
+const mappingEditorVisible = ref(false)
+const editingMappingId = ref<LayoutFormat | null>(null)
+const currentMapping = ref<FieldMapping>({})
+const currentTemplateFields = ref<string[]>([])
+const appointmentFieldLabels = APPOINTMENT_FIELD_LABELS
 
 const statusClass = computed(() => ({
   'status-info': statusType.value === 'info',
@@ -532,6 +589,47 @@ const syncFromMain = () => {
 
 const getDiffCount = (templateId: string): number => {
   return templateDiffs.value[templateId]?.length || 0
+}
+
+// Mapping editor functions
+const openMappingEditor = (templateId: LayoutFormat) => {
+  editingMappingId.value = templateId
+  
+  // Get template fields
+  const entry = templateEntries.value.find(e => e.id === templateId)
+  if (!entry) return
+  
+  currentTemplateFields.value = entry.fields.filter(f => f !== 'header-bg')
+  
+  // Load existing mapping or create empty one
+  const existingMapping = templateStorage.getMapping(templateId)
+  currentMapping.value = existingMapping || {}
+  
+  // Ensure all fields have an entry
+  currentTemplateFields.value.forEach(field => {
+    if (!(field in currentMapping.value)) {
+      currentMapping.value[field] = ''
+    }
+  })
+  
+  mappingEditorVisible.value = true
+}
+
+const closeMappingEditor = () => {
+  mappingEditorVisible.value = false
+  editingMappingId.value = null
+  currentMapping.value = {}
+  currentTemplateFields.value = []
+}
+
+const saveMappingConfig = () => {
+  if (!editingMappingId.value) return
+  
+  // Save mapping to storage
+  templateStorage.saveMapping(editingMappingId.value, currentMapping.value)
+  
+  setStatus('Mapping gespeichert', 'success')
+  closeMappingEditor()
 }
 
 // Cleanup
@@ -915,5 +1013,67 @@ onUnmounted(() => {
   border-radius: 0.25rem;
   font-size: 0.875rem;
   color: #1e40af;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Mapping Editor Modal */
+.mapping-modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  width: 90vw;
+  max-width: 700px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mapping-editor-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.mapping-description {
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.mapping-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mapping-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.mapping-field-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.mapping-select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: white;
+}
+
+.mapping-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 </style>

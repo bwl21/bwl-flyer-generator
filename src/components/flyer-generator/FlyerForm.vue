@@ -90,11 +90,15 @@ const fieldLabels: Record<string, FieldConfig> = {
 // Get all unique field names from all templates with their types
 const formFields = computed(() => {
   const templates = getAllTemplates()
+  if (!templates) return []
+  
   const fieldMap = new Map<string, string>() // name -> type
   
   // Collect all field names and types from all templates
   Object.values(templates).forEach(template => {
-    template.schemas[0]?.forEach(schema => {
+    if (!template || !template.schemas || !template.schemas[0]) return
+    
+    template.schemas[0].forEach(schema => {
       // Include text, qrcode, and image fields
       // Skip only decorative elements like rectangles, lines
       if (schema.type === 'text' || schema.type === 'qrcode' || schema.type === 'image') {
