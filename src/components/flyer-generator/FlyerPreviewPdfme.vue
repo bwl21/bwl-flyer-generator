@@ -8,10 +8,22 @@
           :key="index" 
           class="page-wrapper"
         >
-          <div class="page-number">Seite {{ index + 1 }}</div>
-          <canvas :ref="el => { if (el) canvasRefs[index] = el as HTMLCanvasElement }" 
-                 class="preview-canvas">
-          </canvas>
+          <div class="page-header">
+            <span class="page-number">Seite {{ index + 1 }}</span>
+            <button 
+              class="view-fullscreen-btn"
+              @click="openPdfViewer(index + 1)"
+              title="In neuem Fenster öffnen"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h6v6M14 10l6-6M9 21H3v-6M4 14l6 6"/>
+              </svg>
+            </button>
+          </div>
+          <canvas 
+            :ref="el => { if (el) canvasRefs[index] = el as HTMLCanvasElement }" 
+            class="preview-canvas"
+          ></canvas>
         </div>
       </div>
     </div>
@@ -32,6 +44,7 @@ const props = defineProps<{
 
 const pages = ref<number[]>([])
 const canvasRefs = ref<HTMLCanvasElement[]>([])
+let pdfBlob: Blob | null = null
 
 const plugins = {
   Text: text,
@@ -104,14 +117,36 @@ const renderPreview = async () => {
   }
 }
 
+const openPdfViewer = async (pageNumber: number = 1) => {
+  if (!pdfBlob) {
+    console.error('PDF not generated yet')
+    return
+  }
+
+  const pdfUrl = URL.createObjectURL(pdfBlob)
+  const viewerUrl = `/pdf-viewer.html?file=${encodeURIComponent(pdfUrl)}&page=${pageNumber}`
+  
+  // Open in new window
+  const width = 1000
+  const height = 800
+  const left = (window.screen.width - width) / 2
+  const top = (window.screen.height - height) / 2
+  
+  window.open(
+    viewerUrl,
+    'pdfViewer',
+    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+  )
+}
+
 // Initialize on mount
 onMounted(() => {
   renderPreview()
 })
 
-// Update when data changes (triggered by "Vorschau aktualisieren" button)
+// Update when data changes
 watch(
-  () => props.data,
+  () => [props.data, props.config.id],
   () => {
     renderPreview()
   },
@@ -161,6 +196,37 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 0.25rem;
+}
+
+.view-fullscreen-btn {
+  background: none;
+  border: none;
+  color: #4b5563;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.view-fullscreen-btn:hover {
+  color: #1f2937;
+  background-color: #e5e7eb;
+}
+
+.view-fullscreen-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .page-number {
