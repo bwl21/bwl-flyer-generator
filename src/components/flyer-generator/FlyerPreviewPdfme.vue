@@ -74,6 +74,9 @@ const renderPreview = async () => {
       plugins,
     })
 
+    // Set PDF Blob for Fullscreen
+    pdfBlob = new Blob([pdf], { type: 'application/pdf' })
+
     // Load PDF with PDF.js
     const pdfjsLib = (window as any).pdfjsLib
     if (!pdfjsLib) {
@@ -83,19 +86,19 @@ const renderPreview = async () => {
 
     const loadingTask = pdfjsLib.getDocument({ data: pdf })
     const pdfDoc = await loadingTask.promise
-    
+
     // Update pages array to trigger re-render
     pages.value = Array.from({ length: pdfDoc.numPages }, (_, i) => i + 1)
-    
+
     // Wait for Vue to update the DOM
     await nextTick()
-    
+
     // Render each page
     for (let i = 0; i < pdfDoc.numPages; i++) {
       const page = await pdfDoc.getPage(i + 1)
       const canvas = canvasRefs.value[i]
       if (!canvas) continue
-      
+
       const context = canvas.getContext('2d')
       if (!context) continue
 
@@ -124,19 +127,20 @@ const openPdfViewer = async (pageNumber: number = 1) => {
   }
 
   const pdfUrl = URL.createObjectURL(pdfBlob)
-  const viewerUrl = `/pdf-viewer.html?file=${encodeURIComponent(pdfUrl)}&page=${pageNumber}`
-  
-  // Open in new window
   const width = 1000
   const height = 800
   const left = (window.screen.width - width) / 2
   const top = (window.screen.height - height) / 2
-  
-  window.open(
-    viewerUrl,
-    'pdfViewer',
-    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-  )
+
+  // HTML für natives PDF-iframe
+  const html = `<!DOCTYPE html><html><head><title>PDF Vorschau</title><style>body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;}iframe{border:none;width:100vw;height:100vh;}</style></head><body><iframe src='${pdfUrl}' allow='fullscreen'></iframe></body></html>`
+  const win = window.open('', 'pdfNative', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`)
+  if (win) {
+    win.document.write(html)
+    win.document.close()
+  } else {
+    window.location.href = pdfUrl
+  }
 }
 
 // Initialize on mount
