@@ -18,12 +18,21 @@
       >
         Admin – Vorlagen
       </button>
+      <button
+        type="button"
+        class="nav-tab"
+        :class="{ active: activeTab === 'manager' }"
+        @click="activeTab = 'manager'"
+      >
+        TemplateSet-Manager
+      </button>
     </nav>
 
     <!-- Content -->
     <main class="app-content">
       <FlyerGenerator v-if="activeTab === 'generator'" />
       <TemplateSetEditor v-else-if="activeTab === 'admin'" />
+      <TemplateSetManager v-else-if="activeTab === 'manager'" />
     </main>
 
     <Toast />
@@ -34,9 +43,10 @@
 import { ref } from 'vue'
 import FlyerGenerator from './components/flyer-generator/FlyerGenerator.vue'
 import TemplateSetEditor from './components/admin/TemplateSetEditor.vue'
+import TemplateSetManager from './components/TemplateSetManager.vue'
 import Toast from './components/common/Toast.vue'
 
-type TabId = 'generator' | 'admin'
+type TabId = 'generator' | 'admin' | 'manager'
 const activeTab = ref<TabId>('generator')
 </script>
 
