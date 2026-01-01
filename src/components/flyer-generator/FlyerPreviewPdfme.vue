@@ -40,6 +40,7 @@ import { getTemplate, flyerDataToInput } from '../../services/pdfme-templates'
 const props = defineProps<{
   data: FlyerData | Record<string, string>
   config: LayoutConfig
+  templateSet?: any
 }>()
 
 const pages = ref<number[]>([])
@@ -55,11 +56,29 @@ const plugins = {
 
 const renderPreview = async () => {
   try {
-    const template = getTemplate(props.config.id)
+    // Versuche zuerst, das Template aus dem TemplateSet zu holen
+    let template = null
+    if (props.templateSet && props.templateSet.templates && props.templateSet.templates[props.config.id]) {
+      // Deep clone um Proxy-Probleme zu vermeiden
+      template = JSON.parse(JSON.stringify(props.templateSet.templates[props.config.id]))
+      console.debug('[FlyerPreviewPdfme] Using template from templateSet for', props.config.id)
+    } else {
+      // Fallback zur Standard-Funktion
+      template = getTemplate(props.config.id)
+      console.debug('[FlyerPreviewPdfme] Using fallback template for', props.config.id)
+    }
+    
     if (!template) {
       console.error('Template not found:', props.config.id)
       return
     }
+    
+    // Stelle sicher, dass basePdf das richtige Format hat
+    if (template.basePdf && !template.basePdf.padding) {
+      template.basePdf.padding = [0, 0, 0, 0] as [number, number, number, number]
+    }
+    
+    console.debug('[FlyerPreviewPdfme] Final template for rendering', template)
     
     const inputs = [flyerDataToInput(props.data)]
     if (!inputs[0]) {

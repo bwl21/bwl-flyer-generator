@@ -84,6 +84,7 @@
             :key="config.id"
             :data="previewData"
             :config="config"
+            :template-set="selectedTemplateSet"
           />
         </div>
       </section>
@@ -107,8 +108,8 @@ import { applyMapping, DEFAULT_MAPPING } from '../../services/appointment-mapper
 
 type Appointment = AppointmentBase | AppointmentCalculated
 
-// Layout configurations
-const layoutConfigs = Object.values(LAYOUT_CONFIGS)
+// Layout configurations - werden dynamisch aus selectedTemplateSet geladen
+const layoutConfigs = ref<LayoutConfig[]>(Object.values(LAYOUT_CONFIGS))
 
 // Form data (now supports dynamic fields)
 const flyerData = reactive<Record<string, string>>({})
@@ -142,8 +143,8 @@ const selectedTemplateSet = inject<Ref<TemplateSet|null>>('selectedTemplateSet',
 watch(selectedTemplateSet, (newSet) => {
   console.debug('[FlyerGenerator] selectedTemplateSet changed', newSet)
   if (newSet && typeof newSet === 'object' && newSet.name) {
-    currentTemplateSetName.value = newSet.name
-    // Hier ggf. weitere Initialisierung für dynamische Templates, falls benötigt
+    // Rufe loadTemplateSet auf, wenn ein neues Set ausgewählt wird
+    loadTemplateSet(newSet)
   }
 })
 
@@ -151,23 +152,65 @@ watch(selectedTemplateSet, (newSet) => {
 import { templateSetStorage } from '../../services/template-set-storage'
 
 onMounted(async () => {
-  const activeName = await templateSetStorage.getActiveTemplateSet()
-  if (activeName) {
-    const set = await templateSetStorage.loadTemplateSet(activeName)
-    if (set) {
-      loadTemplateSet(set)
-    }
+  console.debug('[FlyerGenerator] onMounted called')
+  
+  // Prüfe zuerst, ob schon ein selectedTemplateSet vorhanden ist
+  if (selectedTemplateSet.value) {
+    console.debug('[FlyerGenerator] selectedTemplateSet already set, loading it')
+    loadTemplateSet(selectedTemplateSet.value)
   } else {
-    showTemplateSelector.value = true
+    console.debug('[FlyerGenerator] no selectedTemplateSet, checking localStorage')
+    // Fallback zu localStorage
+    const activeName = await templateSetStorage.getActiveTemplateSet()
+    if (activeName) {
+      const set = await templateSetStorage.loadTemplateSet(activeName)
+      if (set) {
+        loadTemplateSet(set)
+      }
+    } else {
+      showTemplateSelector.value = true
+    }
   }
 })
 
 function loadTemplateSet(templateSet: TemplateSet) {
+  console.debug('[FlyerGenerator] loadTemplateSet called with', templateSet.name)
+  console.debug('[FlyerGenerator] templateSet.templates', templateSet.templates)
+  console.debug('[FlyerGenerator] templateSet.templates keys', Object.keys(templateSet.templates))
+  
   currentTemplateSetName.value = templateSet.name
-  // ...weitere Initialisierung...
+  
+  // Erstelle LayoutConfigs aus den Templates im TemplateSet
+  const newLayoutConfigs: LayoutConfig[] = []
+  for (const [id, template] of Object.entries(templateSet.templates)) {
+    console.debug('[FlyerGenerator] Processing template', id, template)
+    const layoutFormat = id as LayoutFormat
+    const basePdf = template.basePdf
+    
+    console.debug('[FlyerGenerator] basePdf for', id, ':', basePdf)
+    
+    if (basePdf && basePdf.width && basePdf.height) {
+      newLayoutConfigs.push({
+        id: layoutFormat,
+        name: LAYOUT_CONFIGS[layoutFormat]?.name || id,
+        width: basePdf.width,
+        height: basePdf.height,
+        filename: `${layoutFormat}.pdf`,
+      })
+      console.debug('[FlyerGenerator] Added layout config for', id)
+    } else {
+      console.debug('[FlyerGenerator] Skipping template', id, '- missing basePdf data')
+    }
+  }
+  
+  console.debug('[FlyerGenerator] Final newLayoutConfigs', newLayoutConfigs)
+  layoutConfigs.value = newLayoutConfigs
+  console.debug('[FlyerGenerator] layoutConfigs.value after update', layoutConfigs.value)
+  
+  // Speichere als aktives TemplateSet
   templateSetStorage.setActiveTemplateSet(templateSet.name)
   showTemplateSelector.value = false
-  setStatus(`Vorlagenset "${templateSet.name}" geladen`, 'success')
+  setStatus(`Vorlagenset "${templateSet.name}" mit ${newLayoutConfigs.length} Vorlagen geladen`, 'success')
 }
 
 // Handle appointment selection

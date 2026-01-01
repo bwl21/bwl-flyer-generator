@@ -610,12 +610,31 @@ const handleUploadTemplateSet = async (event: Event) => {
       templateEntries.value = newEntries
       saveTemplatesToStorage()
       
+      // Erstelle TemplateSet-Objekt und setze es als aktives Set
+      const uploadedSet: TemplateSet = {
+        version: '1.0',
+        name: templateSetName.value,
+        mainTemplate: mainTemplateId.value,
+        templates: Object.fromEntries(newEntries.map(e => [e.id, e.template])),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      
+      // Speichere als TemplateSet in localStorage
+      await templateSetStorage.saveTemplateSet(uploadedSet)
+      await templateSetStorage.setActiveTemplateSet(uploadedSet.name)
+      
+      // Setze selectedTemplateSet für die globale State-Verwaltung
+      selectedTemplateSet.value = uploadedSet
+      
+      console.debug('[TemplateSetEditor] Uploaded set saved as active template set', uploadedSet)
+      
       // Recalculate diffs if sync panel is open
       if (showSyncPanel.value) {
         calculateDiffs()
       }
       
-      setStatus(`${newEntries.length} Vorlagen geladen und gespeichert`, 'success')
+      setStatus(`${newEntries.length} Vorlagen geladen und als aktives Set gespeichert`, 'success')
     } else {
       setStatus('Keine gültigen Vorlagen gefunden', 'error')
     }
