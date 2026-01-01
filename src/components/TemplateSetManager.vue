@@ -1,31 +1,4 @@
 <template>
-    <!-- Dialog für neues Design -->
-    <div v-if="showAddDesignDialog" class="modal-overlay" @click.self="closeAddDesignDialog">
-      <div class="modal-content">
-        <header class="modal-header">
-          <h2>Neues Design hinzufügen</h2>
-          <button class="close-btn" @click="closeAddDesignDialog">×</button>
-        </header>
-        <div class="modal-body">
-          <label>
-            Name:
-            <input v-model="newDesign.name" type="text" placeholder="Design-Name" />
-          </label>
-          <label>
-            Breite (mm):
-            <input v-model.number="newDesign.width" type="number" min="10" max="1000" />
-          </label>
-          <label>
-            Höhe (mm):
-            <input v-model.number="newDesign.height" type="number" min="10" max="1000" />
-          </label>
-        </div>
-        <footer class="modal-footer">
-          <button @click="closeAddDesignDialog" class="btn-secondary">Abbrechen</button>
-          <button @click="addDesignToSet" class="btn-primary">Hinzufügen</button>
-        </footer>
-      </div>
-    </div>
   <div class="template-set-manager">
     <header class="manager-header">
       <div>
@@ -33,23 +6,53 @@
         <p class="subtitle">{{ currentTemplateSet?.name || 'Kein Set geladen' }}</p>
       </div>
       <div class="header-actions">
-        <button @click="showLoadDialog = true" class="btn-secondary">
-          Set laden
+        <button @click="fetchTemplateSets" class="btn-secondary">
+          Sets aktualisieren
         </button>
         <button @click="downloadTemplateSet" :disabled="!currentTemplateSet" class="btn-secondary">
           Set exportieren
         </button>
+        <button @click="showCreateDialog" class="btn-primary">
+          Neues Set erstellen
+        </button>
+          <div v-if="createDialogVisible" class="modal-overlay" @click.self="closeCreateDialog">
+            <div class="modal-content">
+              <header class="modal-header">
+                <h2>Neues Template-Set erstellen</h2>
+                <button class="close-btn" @click="closeCreateDialog">×</button>
+              </header>
+              <div class="modal-body">
+                <label for="newSetName">Name des Sets:</label>
+                <input id="newSetName" v-model="newSetName" type="text" placeholder="Set-Name" />
+              </div>
+              <footer class="modal-footer">
+                <button @click="closeCreateDialog" class="btn-secondary">Abbrechen</button>
+                <button @click="createDemoTemplateSet" :disabled="!newSetName.trim()" class="btn-primary">Erstellen</button>
+              </footer>
+            </div>
+          </div>
       </div>
     </header>
 
-    <div v-if="currentTemplateSet" class="manager-content">
-      <!-- Main Template Info -->
+    <section class="set-list" v-if="templateSets.length && !editorVisible">
+      <h2>Verfügbare Template-Sets</h2>
+      <ul>
+        <li v-for="name in templateSets" :key="name">
+          <button @click="openEditorForSet(name)" class="btn-primary">
+            {{ name }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <TemplateSetEditor v-if="editorVisible" :template-set="editorTemplateSet" @close="closeEditor" />
+
+    <div v-if="currentTemplateSet && !editorVisible" class="manager-content">
       <section class="info-card">
         <h2>Main Template: {{ currentTemplateSet.mainTemplate }}</h2>
         <p>Änderungen am Main Template können auf andere Templates synchronisiert werden.</p>
       </section>
 
-      <!-- Templates Grid -->
       <div class="templates-grid">
         <div
           v-for="(template, id) in currentTemplateSet.templates"
@@ -61,14 +64,11 @@
             <h3>{{ template.name || id }}</h3>
             <span v-if="id === currentTemplateSet.mainTemplate" class="badge-main">Main</span>
           </div>
-
           <div class="card-body">
             <div class="template-info">
-              <p><strong>Format:</strong> {{ template.basePdf.width }}×{{ template.basePdf.height }}mm</p>
-              <p><strong>Felder:</strong> {{ template.schemas[0].length }}</p>
+              <p><strong>Format:</strong> {{ template.basePdf?.width ?? '-' }}×{{ template.basePdf?.height ?? '-' }}mm</p>
+              <p><strong>Felder:</strong> {{ template.schemas?.[0]?.length ?? 0 }}</p>
             </div>
-
-            <!-- Diff Indicator -->
             <div v-if="id !== currentTemplateSet.mainTemplate" class="diff-section">
               <div v-if="getDiffCount(id) > 0" class="diff-warning">
                 ⚠️ {{ getDiffCount(id) }} Unterschiede zum Main Template
@@ -78,7 +78,6 @@
               </div>
             </div>
           </div>
-
           <div class="card-actions">
             <button @click="editTemplate(id)" class="btn-primary">
               Bearbeiten
@@ -95,11 +94,7 @@
         </div>
       </div>
 
-      <!-- Global Actions -->
       <section class="global-actions">
-        <button @click="addNewDesign" class="btn-primary">
-          Neues Design hinzufügen
-        </button>
         <button @click="syncAllTemplates" class="btn-primary btn-large">
           Alle Templates mit Main synchronisieren
         </button>
@@ -108,7 +103,6 @@
         </button>
       </section>
 
-      <!-- Validation Results -->
       <div v-if="validationResult" class="validation-results">
         <h3>Validierungs-Ergebnisse</h3>
         <div v-if="validationResult.valid" class="success-message">
@@ -129,36 +123,24 @@
       </div>
     </div>
 
-    <!-- Empty State -->
     <div v-else class="empty-state">
       <p>📦 Kein Template-Set geladen</p>
-      <button @click="showLoadDialog = true" class="btn-primary">
-        Template-Set laden
+      <button @click="fetchTemplateSets" class="btn-primary">
+        Sets neu laden
       </button>
     </div>
 
-    <!-- Load Dialog -->
-    <TemplateSelectorModal
-      v-if="showLoadDialog"
-      @close="showLoadDialog = false"
-      @select="loadTemplateSet"
-    />
-
-    <!-- Sync Dialog -->
     <div v-if="syncDialogVisible" class="modal-overlay" @click.self="closeSyncDialog">
       <div class="modal-content">
         <header class="modal-header">
           <h2>Template synchronisieren</h2>
           <button class="close-btn" @click="closeSyncDialog">×</button>
         </header>
-
         <div class="modal-body">
           <p>
             Synchronisiere <strong>{{ syncTargetId }}</strong> mit Main Template
             <strong>{{ currentTemplateSet?.mainTemplate }}</strong>
           </p>
-
-          <!-- Diff Preview -->
           <div v-if="currentDiff.length > 0" class="diff-preview">
             <h3>Änderungen ({{ currentDiff.length }}):</h3>
             <div v-for="(diff, idx) in currentDiff" :key="idx" class="diff-item">
@@ -172,8 +154,6 @@
               <div v-else class="diff-message">{{ diff.message }}</div>
             </div>
           </div>
-
-          <!-- Sync Options -->
           <div class="sync-options">
             <h3>Was synchronisieren?</h3>
             <label>
@@ -190,7 +170,6 @@
             </label>
           </div>
         </div>
-
         <footer class="modal-footer">
           <button @click="closeSyncDialog" class="btn-secondary">Abbrechen</button>
           <button @click="performSync" class="btn-primary">Synchronisieren</button>
@@ -198,7 +177,6 @@
       </div>
     </div>
 
-    <!-- Status Messages -->
     <div v-if="statusMessage" class="status-toast" :class="statusType">
       {{ statusMessage }}
     </div>
@@ -206,60 +184,17 @@
 </template>
 
 <script setup lang="ts">
-// Dialog-Logik für neues Design
-import { ref, reactive, computed } from 'vue'
-const showAddDesignDialog = ref(false)
-const newDesign = reactive({
-  name: '',
-  width: 210,
-  height: 297
-})
-
-function openAddDesignDialog() {
-  newDesign.name = ''
-  newDesign.width = 210
-  newDesign.height = 297
-  showAddDesignDialog.value = true
-}
-
-function closeAddDesignDialog() {
-  showAddDesignDialog.value = false
-}
-
-function addDesignToSet() {
-  if (!currentTemplateSet.value) return
-  if (!newDesign.name) {
-    showStatus('Name darf nicht leer sein', 'error')
-    return
-  }
-  // ID generieren (z.B. aus Name)
-  const id = newDesign.name.trim().toLowerCase().replace(/\s+/g, '-')
-  if (currentTemplateSet.value.templates[id]) {
-    showStatus('Design mit dieser ID existiert bereits', 'error')
-    return
-  }
-  currentTemplateSet.value.templates[id] = {
-    name: newDesign.name,
-    basePdf: { width: newDesign.width, height: newDesign.height },
-    schemas: [[]],
-    // ggf. weitere Felder initialisieren
-  }
-  showStatus(`Design "${newDesign.name}" hinzugefügt`, 'success')
-  showAddDesignDialog.value = false
-}
-// Handler für neuen Button
-function addNewDesign() {
-  openAddDesignDialog()
-}
-import TemplateSelectorModal from './TemplateSelectorModal.vue'
-import { TemplateSyncService, type TemplateSet, type FieldDiff, type ValidationResult } from '../services/template-sync'
+import { ref, onMounted } from 'vue'
+import { TemplateSyncService, type FieldDiff, type ValidationResult } from '../services/template-sync'
 import { TemplateLoader } from '../services/template-loader'
+import { templateSetStorage } from '../services/template-set-storage'
+import TemplateSetEditor from './admin/TemplateSetEditor.vue'
 
 const syncService = new TemplateSyncService()
 const loader = new TemplateLoader()
 
-const currentTemplateSet = ref<TemplateSet | null>(null)
-const showLoadDialog = ref(false)
+const templateSets = ref<string[]>([])
+const currentTemplateSet = ref<any>(null)
 const syncDialogVisible = ref(false)
 const syncTargetId = ref('')
 const currentDiff = ref<FieldDiff[]>([])
@@ -272,25 +207,78 @@ const validationResult = ref<ValidationResult | null>(null)
 const statusMessage = ref('')
 const statusType = ref<'success' | 'error' | 'info'>('info')
 
+const createDialogVisible = ref(false)
+const newSetName = ref('')
+
+const editorVisible = ref(false)
+const editorTemplateSet = ref(null)
+
+function showCreateDialog() {
+  newSetName.value = ''
+  createDialogVisible.value = true
+}
+
+function closeCreateDialog() {
+  createDialogVisible.value = false
+}
+
+async function fetchTemplateSets() {
+  templateSets.value = await templateSetStorage.listTemplateSets()
+}
+
+onMounted(fetchTemplateSets)
+
+async function selectTemplateSet(name: string) {
+  const set = await templateSetStorage.loadTemplateSet(name)
+  if (set) {
+    currentTemplateSet.value = set
+    await templateSetStorage.setActiveTemplateSet(name)
+    showStatus(`Template-Set "${set.name}" geladen`, 'success')
+    openEditorForSet(name)
+  } else {
+    showStatus('Template-Set konnte nicht geladen werden', 'error')
+  }
+}
+
 function getDiffCount(templateId: string): number {
   if (!currentTemplateSet.value) return 0
   return syncService.getDiffCount(currentTemplateSet.value, templateId)
 }
 
-function loadTemplateSet(templateSet: TemplateSet) {
-  currentTemplateSet.value = templateSet
-  showLoadDialog.value = false
-  showStatus(`Template-Set "${templateSet.name}" geladen`, 'success')
-}
-
 function editTemplate(templateId: string) {
-  // TODO: Open Designer for this template
   showStatus(`Editor für "${templateId}" öffnen (noch nicht implementiert)`, 'info')
+}
+async function createDemoTemplateSet() {
+  const name = newSetName.value.trim()
+  if (!name) return
+  // Duplikatsprüfung
+  const existingSets = await templateSetStorage.listTemplateSets()
+  if (existingSets.includes(name)) {
+    showStatus('Set-Name existiert bereits', 'error')
+    return
+  }
+  const demoSet = {
+    version: '1.0',
+    name,
+    mainTemplate: 'a5-portrait',
+    templates: {
+      'a5-portrait': {
+        name: 'A5 Hoch',
+        basePdf: { width: 148, height: 210 },
+        schemas: [[]],
+      }
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  await templateSetStorage.saveTemplateSet(demoSet)
+  fetchTemplateSets()
+  showStatus('Set erstellt', 'success')
+  closeCreateDialog()
 }
 
 function showSyncDialog(templateId: string) {
   if (!currentTemplateSet.value) return
-
   syncTargetId.value = templateId
   currentDiff.value = syncService.getDiff(currentTemplateSet.value, templateId)
   syncDialogVisible.value = true
@@ -304,39 +292,27 @@ function closeSyncDialog() {
 
 function performSync() {
   if (!currentTemplateSet.value || !syncTargetId.value) return
-
   const properties: string[] = []
-  if (syncOptions.value.colors) {
-    properties.push('fontColor', 'color')
-  }
-  if (syncOptions.value.alignment) {
-    properties.push('alignment')
-  }
-  if (syncOptions.value.types) {
-    properties.push('type', 'name')
-  }
-
+  if (syncOptions.value.colors) properties.push('fontColor', 'color')
+  if (syncOptions.value.alignment) properties.push('alignment')
+  if (syncOptions.value.types) properties.push('type', 'name')
   currentTemplateSet.value = syncService.syncFromMain(currentTemplateSet.value, {
     templates: [syncTargetId.value],
     properties,
   })
-
   showStatus(`Template "${syncTargetId.value}" synchronisiert`, 'success')
   closeSyncDialog()
 }
 
 function syncAllTemplates() {
   if (!currentTemplateSet.value) return
-
   currentTemplateSet.value = syncService.syncFromMain(currentTemplateSet.value)
   showStatus('Alle Templates synchronisiert', 'success')
 }
 
 function validateTemplates() {
   if (!currentTemplateSet.value) return
-
   validationResult.value = syncService.validate(currentTemplateSet.value)
-
   if (validationResult.value.valid) {
     showStatus('Validierung erfolgreich', 'success')
   } else {
@@ -346,7 +322,6 @@ function validateTemplates() {
 
 function downloadTemplateSet() {
   if (!currentTemplateSet.value) return
-
   loader.downloadAsJson(currentTemplateSet.value)
   showStatus('Template-Set exportiert', 'success')
 }
@@ -358,7 +333,22 @@ function showStatus(message: string, type: 'success' | 'error' | 'info') {
     statusMessage.value = ''
   }, 3000)
 }
+
+async function openEditorForSet(name: string) {
+  const set = await templateSetStorage.loadTemplateSet(name)
+  if (set) {
+    editorTemplateSet.value = set
+    editorVisible.value = true
+  } else {
+    showStatus('Template-Set konnte nicht geladen werden', 'error')
+  }
+}
+function closeEditor() {
+  editorVisible.value = false
+  editorTemplateSet.value = null
+}
 </script>
+
 
 <style scoped>
 .template-set-manager {
