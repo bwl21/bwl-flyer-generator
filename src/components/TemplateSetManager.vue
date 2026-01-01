@@ -230,32 +230,42 @@ import type { TemplateSet } from '../types/flyer'
 const selectedTemplateSet = inject<Ref<TemplateSet|null>>('selectedTemplateSet')
 
 function editSet(name) {
-  console.debug('[TemplateSetManager] editSet', name)
+  console.debug('[TemplateSetManager] editSet called', name)
   templateSetStorage.loadTemplateSet(name).then(set => {
+    console.debug('[TemplateSetManager] loaded set from storage', set)
     if (set) {
-      console.debug('[TemplateSetManager] loaded set for edit', set)
-      activeTab.value = 'admin'
+      console.debug('[TemplateSetManager] setting selectedTemplateSet', set)
       selectedTemplateSet.value = set
-      console.debug('[TemplateSetManager] selectedTemplateSet updated', selectedTemplateSet.value)
+      console.debug('[TemplateSetManager] selectedTemplateSet after setting', selectedTemplateSet.value)
+      activeTab.value = 'admin'
+      console.debug('[TemplateSetManager] activeTab set to admin', activeTab.value)
     } else {
       showStatus('Set konnte nicht geladen werden', 'error')
       console.error('[TemplateSetManager] Set konnte nicht geladen werden', name)
     }
+  }).catch(error => {
+    console.error('[TemplateSetManager] Error loading set', error)
+    showStatus('Fehler beim Laden des Sets', 'error')
   })
 }
 
 function selectSet(name) {
-  console.debug('[TemplateSetManager] selectSet', name)
+  console.debug('[TemplateSetManager] selectSet called', name)
   templateSetStorage.loadTemplateSet(name).then(set => {
+    console.debug('[TemplateSetManager] loaded set from storage', set)
     if (set) {
-      console.debug('[TemplateSetManager] loaded set for select', set)
-      activeTab.value = 'generator'
+      console.debug('[TemplateSetManager] setting selectedTemplateSet', set)
       selectedTemplateSet.value = set
-      console.debug('[TemplateSetManager] selectedTemplateSet updated', selectedTemplateSet.value)
+      console.debug('[TemplateSetManager] selectedTemplateSet after setting', selectedTemplateSet.value)
+      activeTab.value = 'generator'
+      console.debug('[TemplateSetManager] activeTab set to generator', activeTab.value)
     } else {
       showStatus('Set konnte nicht geladen werden', 'error')
       console.error('[TemplateSetManager] Set konnte nicht geladen werden', name)
     }
+  }).catch(error => {
+    console.error('[TemplateSetManager] Error loading set', error)
+    showStatus('Fehler beim Laden des Sets', 'error')
   })
 }
 

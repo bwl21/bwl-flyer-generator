@@ -793,46 +793,18 @@ const saveMappingConfig = () => {
   closeMappingEditor()
 }
 
-const noActiveSet = ref(false)
-onMounted(async () => {
-  const activeName = await templateSetStorage.getActiveTemplateSet()
-  if (activeName) {
-    const set = await templateSetStorage.loadTemplateSet(activeName)
-    if (set) {
-      templateSetName.value = set.name
-      if (set.templates && typeof set.templates === 'object') {
-        templateEntries.value = Object.entries(set.templates).map(([id, template]) => {
-          const config = LAYOUT_CONFIGS[id as LayoutFormat] || { name: id, width: (template as Template).basePdf?.width, height: (template as Template).basePdf?.height }
-          const fields = (template && (template as Template).schemas && (template as Template).schemas[0])
-            ? (template as Template).schemas[0].map((s: any) => s.name)
-            : []
-          return {
-            id: id as LayoutFormat,
-            name: config.name,
-            format: `${config.width}×${config.height}mm`,
-            fields,
-            template: template as Template,
-          }
-        })
-        if (set.mainTemplate) {
-          mainTemplateId.value = set.mainTemplate
-        }
-      }
-      noActiveSet.value = false
-    } else {
-      noActiveSet.value = true
-    }
-  } else {
-    noActiveSet.value = true
-  }
-})
+const noActiveSet = ref(true) // Standardmäßig auf true setzen
 
-// watch für selectedTemplateSet: baue TemplateSetEntry[] für die UI aus dem Record
-watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
-  console.debug('[TemplateSetEditor] selectedTemplateSet changed', newSet)
+// Funktion zum Verarbeiten eines Template-Sets
+function processTemplateSet(newSet: TemplateSet | null) {
+  console.debug('[TemplateSetEditor] processTemplateSet', newSet)
+  console.debug('[TemplateSetEditor] newSet type:', typeof newSet)
+  console.debug('[TemplateSetEditor] newSet.name:', newSet?.name)
   if (newSet && typeof newSet === 'object' && newSet.name) {
+    console.debug('[TemplateSetEditor] Processing new set with name:', newSet.name)
     templateSetName.value = newSet.name
     if (newSet.templates && typeof newSet.templates === 'object') {
+      console.debug('[TemplateSetEditor] Processing templates:', Object.keys(newSet.templates))
       templateEntries.value = Object.entries(newSet.templates).map(([id, template]) => {
         const config = LAYOUT_CONFIGS[id as LayoutFormat] || { name: id, width: (template as Template).basePdf?.width, height: (template as Template).basePdf?.height }
         const fields = (template && (template as Template).schemas && (template as Template).schemas[0])
@@ -850,7 +822,40 @@ watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
         mainTemplateId.value = newSet.mainTemplate as LayoutFormat
       }
     }
+    // Wichtig: Setze noActiveSet auf false, wenn wir ein Set haben
+    console.debug('[TemplateSetEditor] Setting noActiveSet to false')
+    noActiveSet.value = false
+  } else {
+    // Wenn kein Set vorhanden, setze noActiveSet auf true
+    console.debug('[TemplateSetEditor] Setting noActiveSet to true')
+    noActiveSet.value = true
   }
+}
+
+onMounted(() => {
+  console.debug('[TemplateSetEditor] onMounted called')
+  // Prüfe, ob schon ein selectedTemplateSet vorhanden ist
+  if (selectedTemplateSet.value) {
+    console.debug('[TemplateSetEditor] selectedTemplateSet already set, processing it')
+    processTemplateSet(selectedTemplateSet.value)
+  } else {
+    console.debug('[TemplateSetEditor] no selectedTemplateSet, checking localStorage')
+    // Fallback zu localStorage
+    templateSetStorage.getActiveTemplateSet().then(async (activeName) => {
+      if (activeName) {
+        const set = await templateSetStorage.loadTemplateSet(activeName)
+        if (set) {
+          processTemplateSet(set)
+        }
+      }
+    })
+  }
+})
+
+// watch für selectedTemplateSet: baue TemplateSetEntry[] für die UI aus dem Record
+watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
+  console.debug('[TemplateSetEditor] selectedTemplateSet changed', newSet)
+  processTemplateSet(newSet)
 })
 
 // selectedTemplateSet is now injected at the top
