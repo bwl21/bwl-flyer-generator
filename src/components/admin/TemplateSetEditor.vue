@@ -188,6 +188,9 @@ onMounted(() => {
         <div class="editor-header">
           <h3>Template bearbeiten: {{ editingTemplateId }}</h3>
           <div class="editor-actions">
+            <button type="button" class="btn btn-warning" @click="applyDefaultSchemaToCurrentTemplate">
+              Default Schema
+            </button>
             <button type="button" class="btn btn-primary" @click="saveTemplate">
               Speichern
             </button>
@@ -355,7 +358,7 @@ import type { Template } from '@pdfme/common'
 import JSZip from 'jszip'
 import type { TemplateSetEntry } from '../../types/flyer'
 import { LAYOUT_CONFIGS } from '../../types/flyer'
-import { getTemplate, getAllTemplates } from '../../services/pdfme-templates'
+import { getTemplate, getAllTemplates, createA5PortraitTemplate, createA5LandscapeTemplate, createA6LongPortraitTemplate, createA6LongLandscapeTemplate } from '../../services/pdfme-templates'
 import { 
   TemplateSyncService, 
   type FieldDiff,
@@ -771,6 +774,125 @@ const getDiffCount = (templateId: string): number => {
   return templateDiffs.value[templateId]?.length || 0
 }
 
+// Default Schema in das aktuell bearbeitete Template einfügen
+const applyDefaultSchemaToCurrentTemplate = () => {
+  console.debug('[TemplateSetEditor] applyDefaultSchemaToCurrentTemplate called')
+  
+  if (!editingTemplateId.value) {
+    setStatus('Kein Template ausgewählt', 'error')
+    return
+  }
+  
+  // Finde den aktuellen Template-Eintrag
+  const currentEntry = templateEntries.value.find(e => e.id === editingTemplateId.value)
+  if (!currentEntry) {
+    setStatus('Template nicht gefunden', 'error')
+    return
+  }
+  
+  // Hole das Default-Schema für diesen Template-Typ
+  let defaultSchema = null
+  try {
+    switch (editingTemplateId.value) {
+      case 'a5-portrait':
+        defaultSchema = createA5PortraitTemplate().schemas[0]
+        break
+      case 'a5-landscape':
+        defaultSchema = createA5LandscapeTemplate().schemas[0]
+        break
+      case 'a6-long-portrait':
+        defaultSchema = createA6LongPortraitTemplate().schemas[0]
+        break
+      case 'a6-long-landscape':
+        defaultSchema = createA6LongLandscapeTemplate().schemas[0]
+        break
+      default:
+        setStatus('Unbekanntes Template-Format', 'error')
+        return
+    }
+  } catch (error) {
+    console.error('Fehler beim Erstellen des Default-Schemas:', error)
+    setStatus('Fehler beim Erstellen des Default-Schemas', 'error')
+    return
+  }
+  
+  if (!defaultSchema) {
+    setStatus('Konnte Default-Schema nicht erstellen', 'error')
+    return
+  }
+  
+  console.debug('[TemplateSetEditor] Applying default schema to current template', defaultSchema)
+  
+  // Entferne leere Image-Felder aus dem Default-Schema
+  const filteredSchema = defaultSchema.filter((field: any) => field.type !== 'image')
+  
+  // Füge das Default-Schema dem aktuellen Template hinzu
+  const updatedTemplate = {
+    ...currentEntry.template,
+    schemas: [filteredSchema] // Ersetze das gesamte Schema mit Default-Werten (ohne leere Images)
+  }
+  
+  // Aktualisiere den Eintrag
+  currentEntry.template = updatedTemplate
+  currentEntry.fields = filteredSchema.map((s: any) => s.name)
+  
+  // Speichere die Änderungen
+  saveTemplatesToStorage()
+  
+  // Aktualisiere das selectedTemplateSet global
+  if (selectedTemplateSet.value) {
+    const updatedTemplates: Record<LayoutFormat, any> = {}
+    for (const entry of templateEntries.value) {
+      updatedTemplates[entry.id] = entry.template
+    }
+    
+    const updatedSet = {
+      ...selectedTemplateSet.value,
+      templates: updatedTemplates,
+      updatedAt: new Date().toISOString()
+    }
+    
+    selectedTemplateSet.value = updatedSet
+    templateSetStorage.saveTemplateSet(updatedSet)
+  }
+  
+  // Aktualisiere den Designer, falls geöffnet
+  updateDesigner(updatedTemplate)
+  
+  setStatus('Default-Schema eingefügt', 'success')
+  console.debug('[TemplateSetEditor] Default schema applied to current template')
+}
+
+// Hilfsfunktion zum Aktualisieren des Designers
+const updateDesigner = async (template: any) => {
+  if (designer) {
+    try {
+      // Zerstöre den aktuellen Designer und erstelle ihn neu mit dem neuen Template
+      designer.destroy()
+      designer = null
+      
+      await nextTick()
+      
+      if (editorContainer.value) {
+        designer = new Designer({
+          domContainer: editorContainer.value,
+          template: template,
+          plugins: {
+            Text: text,
+            QRCode: barcodes.qrcode,
+            Rectangle: rectangle,
+            Image: image,
+            Line: line,
+          },
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren des Designers:', error)
+      setStatus('Fehler beim Aktualisieren des Designers', 'error')
+    }
+  }
+}
+
 // Mapping editor functions
 const openMappingEditor = (templateId: LayoutFormat) => {
   editingMappingId.value = templateId
@@ -883,7 +1005,15 @@ watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
 <style scoped>
 /* Verbesserte Dialog-Form für Layout-Hinzufügen */
 .editor-modal-content {
-  max-width: 400px;
+  max-width: 90vw; /* Breiter für bessere Benutzererfahrung */
+  width: 90vw;
+  max-height: 85vh; /* Höher für bessere Benutzererfahrung */
+  margin: auto;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+}
+
+.mapping-modal-content {
+  max-width: 600px;
   width: 100%;
   margin: auto;
   box-shadow: 0 4px 32px rgba(0,0,0,0.12);
@@ -918,6 +1048,15 @@ watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid #e5e7eb;
+  flex-wrap: wrap; /* Erlaube Umbruch bei vielen Buttons */
+}
+
+.editor-container {
+  width: 100%;
+  height: 60vh; /* Feste Höhe für bessere Benutzererfahrung */
+  min-height: 400px;
+  overflow: auto;
+  padding: 1rem;
 }
 .template-admin {
   max-width: 1200px;
@@ -1030,6 +1169,15 @@ watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
 
 .btn-primary:hover:not(:disabled) {
   background-color: #2563eb;
+}
+
+.btn-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
 }
 
 .btn-secondary {

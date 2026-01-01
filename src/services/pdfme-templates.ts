@@ -203,6 +203,14 @@ const getDefaultTemplates = (): Record<LayoutFormat, Template> => ({
   'a6-long-landscape': createA6LongLandscapeTemplate(),
 })
 
+// Export all factory functions
+export { 
+  createA5PortraitTemplate, 
+  createA5LandscapeTemplate, 
+  createA6LongPortraitTemplate, 
+  createA6LongLandscapeTemplate 
+}
+
 // Template factory - uses stored templates if available
 export const getTemplate = (format: LayoutFormat): Template => {
   const storedTemplates = templateStorage.loadTemplatesOnly()
