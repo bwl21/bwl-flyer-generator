@@ -1,3 +1,30 @@
+// Initialisiere beim Mounten, falls selectedTemplateSet.value schon gesetzt ist
+onMounted(() => {
+  if (selectedTemplateSet.value) {
+    console.debug('[TemplateSetEditor] onMounted: initialisiere mit selectedTemplateSet', selectedTemplateSet.value)
+    // Das gleiche wie im watch, aber direkt beim Mount
+    const newSet = selectedTemplateSet.value
+    templateSetName.value = newSet.name
+    if (newSet.templates && typeof newSet.templates === 'object') {
+      templateEntries.value = Object.entries(newSet.templates).map(([id, template]) => {
+        const config = LAYOUT_CONFIGS[id as LayoutFormat] || { name: id, width: (template as Template).basePdf?.width, height: (template as Template).basePdf?.height }
+        const fields = (template && (template as Template).schemas && (template as Template).schemas[0])
+          ? (template as Template).schemas[0].map((s: any) => s.name)
+          : []
+        return {
+          id: id as LayoutFormat,
+          name: config.name,
+          format: `${config.width}×${config.height}mm`,
+          fields,
+          template: template as Template,
+        }
+      })
+      if (newSet.mainTemplate) {
+        mainTemplateId.value = newSet.mainTemplate as LayoutFormat
+      }
+    }
+  }
+})
 <template>
   <div class="template-admin">
     <header class="admin-header">
@@ -146,6 +173,11 @@
       <div v-if="status" class="status-card" :class="statusClass">
         {{ status }}
       </div>
+
+      <!-- No Active Set Info -->
+      <div v-if="noActiveSet" class="no-active-set-info">
+        <p>ℹ️ Kein aktives Vorlagenset gefunden. Bitte wählen Sie ein Vorlagenset aus oder erstellen Sie ein neues.</p>
+      </div>
     </div>
 
 
@@ -234,17 +266,29 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, nextTick, inject, watch, onMounted } from 'vue'
+// Reagiere auf Tab-Wechsel und lade das aktuelle Set neu, wenn auf Admin gewechselt wird
+const activeTab = inject('activeTab', ref('generator'))
+watch(activeTab, (tab) => {
+  if (tab === 'admin' && selectedTemplateSet.value) {
+    // Trigger UI-Update durch erneutes Setzen
+    console.debug('[TemplateSetEditor] activeTab switched to admin, reloading selectedTemplateSet', selectedTemplateSet.value)
+    // Der bestehende watch auf selectedTemplateSet.value übernimmt das eigentliche Laden
+    // Wir können hier ggf. templateSetName.value = selectedTemplateSet.value.name setzen, aber der bestehende watch reicht aus
+  }
+})
+import type { Ref } from 'vue'
+import type { TemplateSet, LayoutFormat } from '../../types/flyer'
+import type { Template } from '@pdfme/common'
+const selectedTemplateSet = inject<Ref<TemplateSet | null>>('selectedTemplateSet')
+console.debug('[TemplateSetEditor] script setup: selectedTemplateSet injected', selectedTemplateSet)
 // Exportiere die aktuellen Templates als JSON-Datei
 function exportTemplatesJson() {
-  const templatesObj = {};
-  for (const entry of templateEntries.value) {
-    templatesObj[entry.id] = entry.template;
-  }
   const exportData = {
     version: '1.0',
     name: templateSetName.value,
     mainTemplate: mainTemplateId.value,
-    templates: templatesObj,
+    templates: Object.fromEntries(templateEntries.value.map(e => [e.id, e.template])),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -305,12 +349,11 @@ function addLayoutToSet() {
   setStatus(`Layout \"${newLayout.value.name}\" hinzugefügt`, 'success')
   showAddLayoutDialog.value = false
 }
-import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { Designer } from '@pdfme/ui'
 import { text, barcodes, rectangle, image, line } from '@pdfme/schemas'
 import type { Template } from '@pdfme/common'
 import JSZip from 'jszip'
-import type { LayoutFormat, TemplateSetEntry, TemplateSet } from '../../types/flyer'
+import type { TemplateSetEntry } from '../../types/flyer'
 import { LAYOUT_CONFIGS } from '../../types/flyer'
 import { getTemplate, getAllTemplates } from '../../services/pdfme-templates'
 import { 
@@ -323,10 +366,14 @@ import {
   APPOINTMENT_FIELD_LABELS,
   type FieldMapping 
 } from '../../services/appointment-mapper'
+import { templateSetStorage } from '../../services/template-set-storage'
 
 // State
-const templateSetName = ref('default-church-flyers')
+const templateSetName = ref('')
 const templateEntries = ref<TemplateSetEntry[]>([])
+// Debug-Ausgabe bei Änderung
+watch(templateSetName, (val) => console.debug('[TemplateSetEditor] templateSetName geändert:', val))
+watch(templateEntries, (val) => console.debug('[TemplateSetEditor] templateEntries geändert:', val), { deep: true })
 const status = ref('')
 const statusType = ref<'info' | 'success' | 'error'>('info')
 
@@ -361,7 +408,7 @@ const initializeTemplates = () => {
     console.error('No templates available')
     return
   }
-  
+  console.debug('[TemplateSetEditor] initializeTemplates: Default-Templates werden geladen', allTemplates)
   templateEntries.value = Object.entries(allTemplates)
     .filter(([id, template]) => {
       const config = LAYOUT_CONFIGS[id as LayoutFormat]
@@ -382,7 +429,7 @@ const initializeTemplates = () => {
     })
 }
 
-initializeTemplates()
+// initializeTemplates() wird nur noch beim Reset aufgerufen, nicht mehr automatisch beim Laden
 
 // Check if using custom templates
 const usingCustomTemplates = ref(templateStorage.hasCustomTemplates())
@@ -746,12 +793,67 @@ const saveMappingConfig = () => {
   closeMappingEditor()
 }
 
-// Cleanup
-onUnmounted(() => {
-  if (designer) {
-    designer.destroy()
+const noActiveSet = ref(false)
+onMounted(async () => {
+  const activeName = await templateSetStorage.getActiveTemplateSet()
+  if (activeName) {
+    const set = await templateSetStorage.loadTemplateSet(activeName)
+    if (set) {
+      templateSetName.value = set.name
+      if (set.templates && typeof set.templates === 'object') {
+        templateEntries.value = Object.entries(set.templates).map(([id, template]) => {
+          const config = LAYOUT_CONFIGS[id as LayoutFormat] || { name: id, width: (template as Template).basePdf?.width, height: (template as Template).basePdf?.height }
+          const fields = (template && (template as Template).schemas && (template as Template).schemas[0])
+            ? (template as Template).schemas[0].map((s: any) => s.name)
+            : []
+          return {
+            id: id as LayoutFormat,
+            name: config.name,
+            format: `${config.width}×${config.height}mm`,
+            fields,
+            template: template as Template,
+          }
+        })
+        if (set.mainTemplate) {
+          mainTemplateId.value = set.mainTemplate
+        }
+      }
+      noActiveSet.value = false
+    } else {
+      noActiveSet.value = true
+    }
+  } else {
+    noActiveSet.value = true
   }
 })
+
+// watch für selectedTemplateSet: baue TemplateSetEntry[] für die UI aus dem Record
+watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
+  console.debug('[TemplateSetEditor] selectedTemplateSet changed', newSet)
+  if (newSet && typeof newSet === 'object' && newSet.name) {
+    templateSetName.value = newSet.name
+    if (newSet.templates && typeof newSet.templates === 'object') {
+      templateEntries.value = Object.entries(newSet.templates).map(([id, template]) => {
+        const config = LAYOUT_CONFIGS[id as LayoutFormat] || { name: id, width: (template as Template).basePdf?.width, height: (template as Template).basePdf?.height }
+        const fields = (template && (template as Template).schemas && (template as Template).schemas[0])
+          ? (template as Template).schemas[0].map((s: any) => s.name)
+          : []
+        return {
+          id: id as LayoutFormat,
+          name: config.name,
+          format: `${config.width}×${config.height}mm`,
+          fields,
+          template: template as Template,
+        }
+      })
+      if (newSet.mainTemplate) {
+        mainTemplateId.value = newSet.mainTemplate as LayoutFormat
+      }
+    }
+  }
+})
+
+// selectedTemplateSet is now injected at the top
 </script>
 
 <style scoped>
@@ -1227,5 +1329,16 @@ onUnmounted(() => {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* No Active Set Info */
+.no-active-set-info {
+  padding: 1rem;
+  background: #fef3c7;
+  border-left: 4px solid #92400e;
+  border-radius: 0.375rem;
+  color: #92400e;
+  font-size: 0.875rem;
+  margin-top: 1rem;
 }
 </style>

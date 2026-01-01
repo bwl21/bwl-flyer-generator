@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, provide, getCurrentInstance } from 'vue'
 import FlyerGenerator from './components/flyer-generator/FlyerGenerator.vue'
 import TemplateSetEditor from './components/admin/TemplateSetEditor.vue'
 import TemplateSetManager from './components/TemplateSetManager.vue'
@@ -48,6 +48,18 @@ import Toast from './components/common/Toast.vue'
 
 type TabId = 'generator' | 'admin' | 'manager'
 const activeTab = ref<TabId>('generator')
+const selectedTemplateSet = ref(null)
+
+// Provide for inject (composition API)
+provide('activeTab', activeTab)
+provide('selectedTemplateSet', selectedTemplateSet)
+
+// For legacy globalProperties access (used in TemplateSetManager)
+const app = getCurrentInstance()?.appContext.app
+if (app) {
+  app.config.globalProperties.activeTab = activeTab
+  app.config.globalProperties.selectedTemplateSet = selectedTemplateSet
+}
 </script>
 
 <style>

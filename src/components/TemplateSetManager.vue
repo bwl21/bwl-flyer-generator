@@ -36,13 +36,35 @@
 
     <section class="set-list" v-if="templateSets.length && !editorVisible">
       <h2>Verfügbare Template-Sets</h2>
-      <ul>
-        <li v-for="name in templateSets" :key="name">
-          <button @click="openEditorForSet(name)" class="btn-primary">
-            {{ name }}
-          </button>
-        </li>
-      </ul>
+      <div class="table-controls">
+        <input v-model="filterText" type="text" placeholder="🔍 Suchen..." class="filter-input pretty-input" />
+      </div>
+      <table class="template-set-table">
+        <thead>
+          <tr>
+            <th @click="toggleSort" class="sortable">
+              <span style="display: flex; align-items: center; gap: 0.3em; cursor: pointer;">
+                Name
+                <svg v-if="sortAsc" width="14" height="14" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;"><path d="M5 12l5-5 5 5" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg v-else width="14" height="14" viewBox="0 0 20 20" fill="none" style="vertical-align: middle;"><path d="M5 8l5 5 5-5" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            </th>
+            <th style="width: 260px;">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="name in filteredAndSortedSets" :key="name">
+            <td><strong>{{ name }}</strong></td>
+            <td>
+              <div class="action-buttons">
+                <button @click="selectSet(name)" class="btn-primary">Auswählen</button>
+                <button @click="editSet(name)" class="btn-secondary">Bearbeiten</button>
+                <button @click="deleteSet(name)" class="btn-danger">Löschen</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
 
     <TemplateSetEditor v-if="editorVisible" :template-set="editorTemplateSet" @close="closeEditor" />
@@ -184,6 +206,68 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, getCurrentInstance, onMounted, inject } from 'vue'
+
+const app = getCurrentInstance()?.appContext.config.globalProperties
+
+const filterText = ref('')
+const sortAsc = ref(true)
+
+const filteredAndSortedSets = computed(() => {
+  let sets = templateSets.value.filter(name => name.toLowerCase().includes(filterText.value.toLowerCase()))
+  sets = sets.sort((a, b) => sortAsc.value ? a.localeCompare(b) : b.localeCompare(a))
+  return sets
+})
+
+function toggleSort() {
+  sortAsc.value = !sortAsc.value
+}
+
+// Tab switching and set loading
+const activeTab = inject('activeTab')
+import type { Ref } from 'vue'
+import type { TemplateSet } from '../types/flyer'
+const selectedTemplateSet = inject<Ref<TemplateSet|null>>('selectedTemplateSet')
+
+function editSet(name) {
+  console.debug('[TemplateSetManager] editSet', name)
+  templateSetStorage.loadTemplateSet(name).then(set => {
+    if (set) {
+      console.debug('[TemplateSetManager] loaded set for edit', set)
+      activeTab.value = 'admin'
+      selectedTemplateSet.value = set
+      console.debug('[TemplateSetManager] selectedTemplateSet updated', selectedTemplateSet.value)
+    } else {
+      showStatus('Set konnte nicht geladen werden', 'error')
+      console.error('[TemplateSetManager] Set konnte nicht geladen werden', name)
+    }
+  })
+}
+
+function selectSet(name) {
+  console.debug('[TemplateSetManager] selectSet', name)
+  templateSetStorage.loadTemplateSet(name).then(set => {
+    if (set) {
+      console.debug('[TemplateSetManager] loaded set for select', set)
+      activeTab.value = 'generator'
+      selectedTemplateSet.value = set
+      console.debug('[TemplateSetManager] selectedTemplateSet updated', selectedTemplateSet.value)
+    } else {
+      showStatus('Set konnte nicht geladen werden', 'error')
+      console.error('[TemplateSetManager] Set konnte nicht geladen werden', name)
+    }
+  })
+}
+
+async function deleteSet(name) {
+  console.debug('[TemplateSetManager] deleteSet', name)
+  if (confirm(`Set "${name}" wirklich löschen?`)) {
+    await templateSetStorage.deleteTemplateSet(name)
+    fetchTemplateSets()
+    showStatus('Set gelöscht', 'success')
+    console.debug('[TemplateSetManager] Set gelöscht', name)
+  }
+}
 import { ref, onMounted } from 'vue'
 import { TemplateSyncService, type FieldDiff, type ValidationResult } from '../services/template-sync'
 import { TemplateLoader } from '../services/template-loader'
@@ -351,6 +435,98 @@ function closeEditor() {
 
 
 <style scoped>
+/* Filter & Sort Controls */
+/* Filter & Sort Controls */
+.table-controls {
+  margin-bottom: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.filter-input.pretty-input {
+  padding: 0.45rem 1.2rem 0.45rem 2.2rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  min-width: 220px;
+  background: #f8fafc url('data:image/svg+xml;utf8,<svg fill="%236b7280" height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99c.41.41 1.09.41 1.5 0s.41-1.09 0-1.5l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>') no-repeat 0.7rem center;
+  background-size: 1.1em 1.1em;
+  transition: border 0.2s;
+}
+.filter-input.pretty-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background-color: #fff;
+}
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.sortable:hover {
+  color: #2563eb;
+}
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+/* Verbesserte TemplateSet-Liste */
+.template-set-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.template-set-table th, .template-set-table td {
+  padding: 1rem 1.25rem;
+  text-align: left;
+}
+.template-set-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+.template-set-table tr:not(:last-child) td {
+  border-bottom: 1px solid #e5e7eb;
+}
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+.btn-primary, .btn-secondary, .btn-danger {
+  padding: 0.4rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #2563eb;
+}
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+.btn-danger:hover {
+  background: #dc2626;
+}
 .template-set-manager {
   min-height: 100vh;
   background: #f9fafb;

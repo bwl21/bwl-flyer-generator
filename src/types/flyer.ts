@@ -61,6 +61,8 @@ export interface FlyerProject {
 }
 
 // Template set for admin management
+
+// TemplateSetEntry bleibt für UI-Tabellen, aber TemplateSet.templates ist jetzt ein Record
 export interface TemplateSetEntry {
   id: LayoutFormat
   name: string
@@ -72,7 +74,8 @@ export interface TemplateSetEntry {
 export interface TemplateSet {
   version: string
   name: string
-  templates: TemplateSetEntry[]
+  templates: Record<LayoutFormat, import('@pdfme/common').Template>
+  mainTemplate?: LayoutFormat
   createdAt: string
   updatedAt: string
 }

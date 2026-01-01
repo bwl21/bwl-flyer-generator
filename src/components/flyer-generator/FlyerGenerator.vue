@@ -92,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, inject, watch, onMounted } from 'vue'
 import FlyerForm from './FlyerForm.vue'
 import FlyerPreviewPdfme from './FlyerPreviewPdfme.vue'
 import TemplateSelectorModal from '../TemplateSelectorModal.vue'
@@ -135,11 +135,39 @@ const currentTemplateSetName = ref('Church Flyers Default')
 const showAppointmentPicker = ref(false)
 const flyerFormRef = ref<InstanceType<typeof FlyerForm> | null>(null)
 
+import type { Ref } from 'vue'
+// import type { TemplateSet } from '../../types/flyer' // entfernt wegen Alias-Konflikt
+const selectedTemplateSet = inject<Ref<TemplateSet|null>>('selectedTemplateSet', null)
+
+watch(selectedTemplateSet, (newSet) => {
+  console.debug('[FlyerGenerator] selectedTemplateSet changed', newSet)
+  if (newSet && typeof newSet === 'object' && newSet.name) {
+    currentTemplateSetName.value = newSet.name
+    // Hier ggf. weitere Initialisierung für dynamische Templates, falls benötigt
+  }
+})
+
+// FlyerGenerator.vue: Beim Mounten aktives TemplateSet aus localStorage laden, falls vorhanden
+import { templateSetStorage } from '../../services/template-set-storage'
+
+onMounted(async () => {
+  const activeName = await templateSetStorage.getActiveTemplateSet()
+  if (activeName) {
+    const set = await templateSetStorage.loadTemplateSet(activeName)
+    if (set) {
+      loadTemplateSet(set)
+    }
+  } else {
+    showTemplateSelector.value = true
+  }
+})
+
 function loadTemplateSet(templateSet: TemplateSet) {
   currentTemplateSetName.value = templateSet.name
+  // ...weitere Initialisierung...
+  templateSetStorage.setActiveTemplateSet(templateSet.name)
   showTemplateSelector.value = false
   setStatus(`Vorlagenset "${templateSet.name}" geladen`, 'success')
-  // TODO: Update templates in LAYOUT_CONFIGS
 }
 
 // Handle appointment selection
