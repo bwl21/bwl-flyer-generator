@@ -84,11 +84,14 @@
         </div>
 
         <div class="table-actions">
-          <button type="button" class="btn btn-secondary" @click="addNewLayout">
+          <button type="button" class="btn btn-secondary" @click="openAddLayoutDialog">
             Neues Layout hinzufügen
           </button>
           <button type="button" class="btn btn-primary" @click="toggleSyncPanel">
             {{ showSyncPanel ? 'Sync Panel schließen' : 'Sync Panel öffnen' }}
+          </button>
+          <button type="button" class="btn btn-success" @click="exportTemplatesJson">
+            Templates als JSON exportieren
           </button>
         </div>
         
@@ -145,6 +148,8 @@
       </div>
     </div>
 
+
+
     <!-- Editor Modal -->
     <div v-if="editorVisible" class="editor-modal">
       <div class="editor-modal-content">
@@ -199,10 +204,107 @@
         </div>
       </div>
     </div>
+    <!-- Add Layout Dialog -->
+    <div v-if="showAddLayoutDialog" class="editor-modal">
+      <div class="editor-modal-content">
+        <div class="editor-header">
+          <h3>Neues Layout hinzufügen</h3>
+        </div>
+        <div class="editor-body">
+          <div class="form-group">
+            <label for="layout-name">Name</label>
+            <input id="layout-name" v-model="newLayout.name" class="form-control" placeholder="Name des Layouts" />
+          </div>
+          <div class="form-group">
+            <label for="layout-width">Breite (mm)</label>
+            <input id="layout-width" type="number" v-model.number="newLayout.width" class="form-control" min="1" />
+          </div>
+          <div class="form-group">
+            <label for="layout-height">Höhe (mm)</label>
+            <input id="layout-height" type="number" v-model.number="newLayout.height" class="form-control" min="1" />
+          </div>
+        </div>
+        <div class="editor-actions">
+          <button type="button" class="btn btn-secondary" @click="closeAddLayoutDialog">Abbrechen</button>
+          <button type="button" class="btn btn-primary" @click="addLayoutToSet">Hinzufügen</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+// Exportiere die aktuellen Templates als JSON-Datei
+function exportTemplatesJson() {
+  const templatesObj = {};
+  for (const entry of templateEntries.value) {
+    templatesObj[entry.id] = entry.template;
+  }
+  const exportData = {
+    version: '1.0',
+    name: templateSetName.value,
+    mainTemplate: mainTemplateId.value,
+    templates: templatesObj,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const jsonStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${templateSetName.value}-export-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  setStatus('Templates als JSON exportiert', 'success');
+}
+// Dialog-Logik für neues Layout
+const showAddLayoutDialog = ref(false)
+const newLayout = ref({
+  id: '',
+  name: '',
+  width: 210,
+  height: 297
+})
+
+function openAddLayoutDialog() {
+  newLayout.value = { id: '', name: '', width: 210, height: 297 }
+  showAddLayoutDialog.value = true
+}
+
+function closeAddLayoutDialog() {
+  showAddLayoutDialog.value = false
+}
+
+function addLayoutToSet() {
+  // ID generieren (z.B. aus Name)
+  const id = newLayout.value.name.trim().toLowerCase().replace(/\s+/g, '-') as LayoutFormat
+  if (!id || !newLayout.value.name) {
+    setStatus('Name darf nicht leer sein', 'error')
+    return
+  }
+  if (templateEntries.value.some(e => e.id === id)) {
+    setStatus('Layout mit dieser ID existiert bereits', 'error')
+    return
+  }
+  // Zwei Seiten: Standardmäßig zwei leere Schemas
+  const template = {
+    basePdf: { width: newLayout.value.width, height: newLayout.value.height, padding: [0, 0, 0, 0] as [number, number, number, number] },
+    schemas: [[], []],
+  }
+  templateEntries.value.push({
+    id,
+    name: newLayout.value.name,
+    format: `${newLayout.value.width}×${newLayout.value.height}mm`,
+    fields: [],
+    template
+  })
+  saveTemplatesToStorage()
+  setStatus(`Layout \"${newLayout.value.name}\" hinzugefügt`, 'success')
+  showAddLayoutDialog.value = false
+}
 import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { Designer } from '@pdfme/ui'
 import { text, barcodes, rectangle, image, line } from '@pdfme/schemas'
@@ -260,19 +362,24 @@ const initializeTemplates = () => {
     return
   }
   
-  templateEntries.value = Object.entries(allTemplates).map(([id, template]) => {
-    const config = LAYOUT_CONFIGS[id as LayoutFormat]
-    const fields = (template && template.schemas && template.schemas[0]) 
-      ? template.schemas[0].map((s) => s.name) 
-      : []
-    return {
-      id: id as LayoutFormat,
-      name: config.name,
-      format: `${config.width}×${config.height}mm`,
-      fields,
-      template,
-    }
-  })
+  templateEntries.value = Object.entries(allTemplates)
+    .filter(([id, template]) => {
+      const config = LAYOUT_CONFIGS[id as LayoutFormat]
+      return config && template
+    })
+    .map(([id, template]) => {
+      const config = LAYOUT_CONFIGS[id as LayoutFormat]
+      const fields = (template && template.schemas && template.schemas[0]) 
+        ? template.schemas[0].map((s) => s.name) 
+        : []
+      return {
+        id: id as LayoutFormat,
+        name: config.name,
+        format: `${config.width}×${config.height}mm`,
+        fields,
+        template,
+      }
+    })
 }
 
 initializeTemplates()
@@ -524,9 +631,9 @@ const downloadTemplateSet = async () => {
   }
 }
 
-// Add new layout (placeholder)
+// Add new layout (öffnet Dialog)
 const addNewLayout = () => {
-  setStatus('Funktion noch nicht implementiert', 'info')
+  openAddLayoutDialog()
 }
 
 // Sync functionality
@@ -648,6 +755,44 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Verbesserte Dialog-Form für Layout-Hinzufügen */
+.editor-modal-content {
+  max-width: 400px;
+  width: 100%;
+  margin: auto;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+}
+.editor-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.form-control {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  background: #f9fafb;
+  transition: border-color 0.2s;
+}
+.form-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #fff;
+}
+.editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
 .template-admin {
   max-width: 1200px;
   margin: 0 auto;
