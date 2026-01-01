@@ -15,152 +15,90 @@ export interface StoredTemplates {
   updatedAt: string
 }
 
-/**
- * Service for persisting edited templates to localStorage
- */
 export class TemplateStorageService {
-  /**
-   * Save templates to localStorage
-   */
   saveTemplates(templates: Record<LayoutFormat, Template | TemplateWithMapping>): void {
     try {
-      // Load existing data to preserve mappings
-      const existing = this.loadTemplates()
-      
-      // Normalize templates to TemplateWithMapping format
-      const normalizedTemplates: Partial<Record<LayoutFormat, TemplateWithMapping>> = {}
-      
-      for (const [key, value] of Object.entries(templates) as [LayoutFormat, Template | TemplateWithMapping][]) {
-        const isTemplateWithMapping = (val: any): val is TemplateWithMapping => {
-          return val && typeof val === 'object' && 'template' in val
-        }
-        
-        if (isTemplateWithMapping(value)) {
-          // Already in TemplateWithMapping format
-          normalizedTemplates[key] = value
-        } else {
-          // Plain Template, wrap it and preserve existing mapping
-          normalizedTemplates[key] = {
-            template: value as Template,
-            appointmentMapping: existing?.[key]?.appointmentMapping
-          }
-        }
-      }
-      
       const data: StoredTemplates = {
         version: '1.0',
-        templates: normalizedTemplates as Record<LayoutFormat, TemplateWithMapping>,
-        updatedAt: new Date().toISOString(),
+        templates: templates as Record<LayoutFormat, TemplateWithMapping>,
+        updatedAt: new Date().toISOString()
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch (error) {
       console.error('Failed to save templates:', error)
-      throw new Error('Failed to save templates to storage')
     }
   }
 
-  /**
-   * Load templates from localStorage
-   */
   loadTemplates(): Record<LayoutFormat, TemplateWithMapping> | null {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (!stored) return null
-
       const data = JSON.parse(stored)
-      
-      // Check if data is in old format (templates are plain Template objects)
+      // Migration logic for old format
       if (data.templates) {
         const firstTemplate = Object.values(data.templates)[0] as any
         if (firstTemplate && firstTemplate.schemas && !firstTemplate.template) {
-          // Old format detected - migrate to new format
-          console.log('Migrating templates to new format with mapping support')
+          // Old format detected - migrate
           const migratedTemplates: Record<LayoutFormat, TemplateWithMapping> = {} as Record<LayoutFormat, TemplateWithMapping>
-          
           for (const [key, template] of Object.entries(data.templates)) {
             migratedTemplates[key as LayoutFormat] = {
               template: template as Template,
               appointmentMapping: undefined
             }
           }
-          
-          // Save migrated data
           const migratedData: StoredTemplates = {
             version: '1.0',
             templates: migratedTemplates,
             updatedAt: new Date().toISOString()
           }
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedData))
-          
           return migratedTemplates
         }
       }
-      
       return data.templates
     } catch (error) {
       console.error('Failed to load templates:', error)
       return null
     }
   }
-  
-  /**
-   * Load only the Template objects (without mapping)
-   */
+
   loadTemplatesOnly(): Record<LayoutFormat, Template> | null {
     const stored = this.loadTemplates()
     if (!stored) return null
-    
     const result: Record<LayoutFormat, Template> = {} as Record<LayoutFormat, Template>
     for (const [key, value] of Object.entries(stored)) {
       result[key as LayoutFormat] = value.template
     }
     return result
   }
-  
-  /**
-   * Get appointment mapping for a specific template
-   */
+
   getMapping(format: LayoutFormat): FieldMapping | null {
     const stored = this.loadTemplates()
     if (!stored || !stored[format]) return null
     return stored[format].appointmentMapping || null
   }
-  
-  /**
-   * Save appointment mapping for a specific template
-   */
+
   saveMapping(format: LayoutFormat, mapping: FieldMapping): void {
     const stored = this.loadTemplates()
     if (!stored) return
-    
     if (stored[format]) {
       stored[format].appointmentMapping = mapping
       this.saveTemplates(stored)
     }
   }
 
-  /**
-   * Check if custom templates exist
-   */
   hasCustomTemplates(): boolean {
     return localStorage.getItem(STORAGE_KEY) !== null
   }
 
-  /**
-   * Clear stored templates (reset to defaults)
-   */
   clearTemplates(): void {
     localStorage.removeItem(STORAGE_KEY)
   }
 
-  /**
-   * Get last update timestamp
-   */
   getLastUpdate(): string | null {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (!stored) return null
-
       const data: StoredTemplates = JSON.parse(stored)
       return data.updatedAt
     } catch (error) {
@@ -170,3 +108,112 @@ export class TemplateStorageService {
 }
 
 export const templateStorage = new TemplateStorageService()
+
+// --- TemplateSet-Storage-Interfaces und Engines ---
+
+export interface TemplateSetStorageEngine {
+  listSets(): Promise<string[]>
+  loadSet(name: string): Promise<TemplateSet | null>
+  saveSet(set: TemplateSet): Promise<void>
+  deleteSet(name: string): Promise<void>
+  exportSet?(name: string): Promise<string>
+  importSet?(json: string): Promise<void>
+  getType(): string
+}
+
+export interface TemplateSet {
+  name: string
+  templates: Record<string, any>
+  [key: string]: any
+}
+
+export class LocalStorageTemplateSetEngine implements TemplateSetStorageEngine {
+  private prefix = 'templateSet:'
+
+  async listSets(): Promise<string[]> {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(this.prefix))
+    return keys.map(k => k.replace(this.prefix, ''))
+  }
+
+  async loadSet(name: string): Promise<TemplateSet | null> {
+    const raw = localStorage.getItem(this.prefix + name)
+    if (!raw) return null
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+
+  async saveSet(set: TemplateSet): Promise<void> {
+    localStorage.setItem(this.prefix + set.name, JSON.stringify(set))
+  }
+
+  async deleteSet(name: string): Promise<void> {
+    localStorage.removeItem(this.prefix + name)
+  }
+
+  async exportSet(name: string): Promise<string> {
+    const set = await this.loadSet(name)
+    return set ? JSON.stringify(set, null, 2) : ''
+  }
+
+  async importSet(json: string): Promise<void> {
+    const set = JSON.parse(json)
+    if (set && set.name) {
+      await this.saveSet(set)
+    }
+  }
+
+  getType(): string {
+    return 'localstorage'
+  }
+}
+
+// Placeholder for ChurchTools-KV-Store-API (no imports from kv-store.js!)
+async function getKvStore(key?: string): Promise<any> { return {} }
+async function setKvStore(key: string, value: string): Promise<void> { }
+async function deleteKvStore(key: string): Promise<void> { }
+
+export class ChurchToolsKvStoreTemplateSetEngine implements TemplateSetStorageEngine {
+  private prefix = 'templateSet:'
+
+  async listSets(): Promise<string[]> {
+    const all = await getKvStore()
+    return Object.keys(all).filter(k => k.startsWith(this.prefix)).map(k => k.replace(this.prefix, ''))
+  }
+
+  async loadSet(name: string): Promise<TemplateSet | null> {
+    const raw = await getKvStore(this.prefix + name)
+    if (!raw) return null
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+
+  async saveSet(set: TemplateSet): Promise<void> {
+    await setKvStore(this.prefix + set.name, JSON.stringify(set))
+  }
+
+  async deleteSet(name: string): Promise<void> {
+    await deleteKvStore(this.prefix + name)
+  }
+
+  async exportSet(name: string): Promise<string> {
+    const set = await this.loadSet(name)
+    return set ? JSON.stringify(set, null, 2) : ''
+  }
+
+  async importSet(json: string): Promise<void> {
+    const set = JSON.parse(json)
+    if (set && set.name) {
+      await this.saveSet(set)
+    }
+  }
+
+  getType(): string {
+    return 'churchtools'
+  }
+}

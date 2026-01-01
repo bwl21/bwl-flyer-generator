@@ -1,4 +1,31 @@
 <template>
+    <!-- Dialog für neues Design -->
+    <div v-if="showAddDesignDialog" class="modal-overlay" @click.self="closeAddDesignDialog">
+      <div class="modal-content">
+        <header class="modal-header">
+          <h2>Neues Design hinzufügen</h2>
+          <button class="close-btn" @click="closeAddDesignDialog">×</button>
+        </header>
+        <div class="modal-body">
+          <label>
+            Name:
+            <input v-model="newDesign.name" type="text" placeholder="Design-Name" />
+          </label>
+          <label>
+            Breite (mm):
+            <input v-model.number="newDesign.width" type="number" min="10" max="1000" />
+          </label>
+          <label>
+            Höhe (mm):
+            <input v-model.number="newDesign.height" type="number" min="10" max="1000" />
+          </label>
+        </div>
+        <footer class="modal-footer">
+          <button @click="closeAddDesignDialog" class="btn-secondary">Abbrechen</button>
+          <button @click="addDesignToSet" class="btn-primary">Hinzufügen</button>
+        </footer>
+      </div>
+    </div>
   <div class="template-set-manager">
     <header class="manager-header">
       <div>
@@ -70,6 +97,9 @@
 
       <!-- Global Actions -->
       <section class="global-actions">
+        <button @click="addNewDesign" class="btn-primary">
+          Neues Design hinzufügen
+        </button>
         <button @click="syncAllTemplates" class="btn-primary btn-large">
           Alle Templates mit Main synchronisieren
         </button>
@@ -176,7 +206,51 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+// Dialog-Logik für neues Design
+import { ref, reactive, computed } from 'vue'
+const showAddDesignDialog = ref(false)
+const newDesign = reactive({
+  name: '',
+  width: 210,
+  height: 297
+})
+
+function openAddDesignDialog() {
+  newDesign.name = ''
+  newDesign.width = 210
+  newDesign.height = 297
+  showAddDesignDialog.value = true
+}
+
+function closeAddDesignDialog() {
+  showAddDesignDialog.value = false
+}
+
+function addDesignToSet() {
+  if (!currentTemplateSet.value) return
+  if (!newDesign.name) {
+    showStatus('Name darf nicht leer sein', 'error')
+    return
+  }
+  // ID generieren (z.B. aus Name)
+  const id = newDesign.name.trim().toLowerCase().replace(/\s+/g, '-')
+  if (currentTemplateSet.value.templates[id]) {
+    showStatus('Design mit dieser ID existiert bereits', 'error')
+    return
+  }
+  currentTemplateSet.value.templates[id] = {
+    name: newDesign.name,
+    basePdf: { width: newDesign.width, height: newDesign.height },
+    schemas: [[]],
+    // ggf. weitere Felder initialisieren
+  }
+  showStatus(`Design "${newDesign.name}" hinzugefügt`, 'success')
+  showAddDesignDialog.value = false
+}
+// Handler für neuen Button
+function addNewDesign() {
+  openAddDesignDialog()
+}
 import TemplateSelectorModal from './TemplateSelectorModal.vue'
 import { TemplateSyncService, type TemplateSet, type FieldDiff, type ValidationResult } from '../services/template-sync'
 import { TemplateLoader } from '../services/template-loader'
