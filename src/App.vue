@@ -23,7 +23,7 @@
     <!-- Content -->
     <main class="app-content">
       <FlyerGenerator v-if="activeTab === 'generator'" />
-      <TemplateAdmin v-else-if="activeTab === 'admin'" />
+      <TemplateSetEditor v-else-if="activeTab === 'admin'" />
     </main>
 
     <Toast />
@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import FlyerGenerator from './components/flyer-generator/FlyerGenerator.vue'
-import TemplateAdmin from './components/admin/TemplateAdmin.vue'
+import TemplateSetEditor from './components/admin/TemplateSetEditor.vue'
 import Toast from './components/common/Toast.vue'
 
 type TabId = 'generator' | 'admin'
