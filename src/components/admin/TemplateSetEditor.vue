@@ -325,7 +325,7 @@ function closeAddLayoutDialog() {
   showAddLayoutDialog.value = false
 }
 
-function addLayoutToSet() {
+const addLayoutToSet = () => {
   // ID generieren (z.B. aus Name)
   const id = newLayout.value.name.trim().toLowerCase().replace(/\s+/g, '-') as LayoutFormat
   if (!id || !newLayout.value.name) {
@@ -336,11 +336,13 @@ function addLayoutToSet() {
     setStatus('Layout mit dieser ID existiert bereits', 'error')
     return
   }
+  
   // Zwei Seiten: Standardmäßig zwei leere Schemas
   const template = {
     basePdf: { width: newLayout.value.width, height: newLayout.value.height, padding: [0, 0, 0, 0] as [number, number, number, number] },
     schemas: [[], []],
   }
+  
   templateEntries.value.push({
     id,
     name: newLayout.value.name,
@@ -348,6 +350,8 @@ function addLayoutToSet() {
     fields: [],
     template
   })
+  
+  console.debug('[TemplateSetEditor] Adding new layout:', { id, name: newLayout.value.name })
   saveTemplatesToStorage()
   setStatus(`Layout \"${newLayout.value.name}\" hinzugefügt`, 'success')
   showAddLayoutDialog.value = false
@@ -520,12 +524,28 @@ const saveTemplate = () => {
 // Save all templates to storage
 const saveTemplatesToStorage = () => {
   try {
+    // Speichere in templateStorage (für einzelne Templates)
     const templates: Record<LayoutFormat, Template> = {}
     for (const entry of templateEntries.value) {
       templates[entry.id] = entry.template
     }
     templateStorage.saveTemplates(templates)
     usingCustomTemplates.value = true
+    
+    // Speichere auch im TemplateSet (global)
+    if (selectedTemplateSet.value) {
+      const updatedSet = {
+        ...selectedTemplateSet.value,
+        templates: templates,
+        updatedAt: new Date().toISOString()
+      }
+      
+      selectedTemplateSet.value = updatedSet
+      templateSetStorage.saveTemplateSet(updatedSet)
+      console.debug('[TemplateSetEditor] TemplateSet updated and saved globally')
+    }
+    
+    console.debug('[TemplateSetEditor] Templates saved to storage')
   } catch (error) {
     console.error('Failed to save templates:', error)
     setStatus('Fehler beim Speichern', 'error')
