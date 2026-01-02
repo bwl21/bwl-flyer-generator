@@ -10,7 +10,7 @@ export interface FlyerData {
 }
 
 // Layout format definitions
-export type LayoutFormat = 'a5-portrait' | 'a5-landscape' | 'a6-long-portrait' | 'a6-long-landscape'
+export type LayoutFormat = 'a5-portrait' | 'a5-landscape' | 'a6-long-portrait' | 'a6-long-landscape' | string
 
 export interface LayoutConfig {
   id: LayoutFormat

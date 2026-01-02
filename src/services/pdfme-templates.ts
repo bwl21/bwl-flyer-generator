@@ -229,7 +229,48 @@ export const getTemplate = (format: LayoutFormat): Template => {
     case 'a6-long-landscape':
       return createA6LongLandscapeTemplate()
     default:
-      throw new Error(`Unknown layout format: ${format}`)
+      // For custom layouts, try to create a basic template
+      console.warn(`Unknown layout format: ${format}, creating basic template`)
+      return createBasicTemplate(format)
+  }
+}
+
+// Create a basic template for custom layouts
+const createBasicTemplate = (format: string): Template => {
+  // Default to A5 portrait for unknown formats
+  const width = 148
+  const height = 210
+  const padding = 10
+
+  return {
+    basePdf: {
+      width,
+      height,
+      padding: [0, 0, 0, 0],
+    },
+    schemas: [
+      [
+        // Header background
+        {
+          type: 'rectangle',
+          name: 'header-bg',
+          position: { x: 0, y: 0 },
+          width: width,
+          height: 40,
+          color: '#1e40af',
+          borderWidth: 0,
+        },
+        // Title in header
+        createTextSchema('title', padding, 23, width - padding * 2, 20, 14, '#ffffff', 'left'),
+        // Content
+        createTextSchema('datetime', padding, 55, width - padding * 2, 10, 10, '#374151'),
+        createTextSchema('location', padding, 70, width - padding * 2, 10, 10, '#374151'),
+        createTextSchema('speaker', padding, 90, width - padding * 2, 10, 9, '#6b7280'),
+        createTextSchema('desc', padding, 110, width - padding * 2 - 40, 100, 9, '#374151'),
+        // QR Code
+        createQrSchema('qr', width - padding - 35, height - padding - 35, 35),
+      ],
+    ],
   }
 }
 

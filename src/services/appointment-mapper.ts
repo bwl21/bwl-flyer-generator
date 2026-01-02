@@ -84,7 +84,7 @@ export function extractAppointmentData(appointment: Appointment): AppointmentDat
     city: base.address?.city || '',
     zip: base.address?.zip || '',
     address: fullAddress,
-    calendarName: base.calendar.nameTranslated,
+    calendarName: base.calendar?.nameTranslated || base.calendar?.name || '',
     link: base.link || '',
     isInternal: base.isInternal,
   }

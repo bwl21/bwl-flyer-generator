@@ -45,6 +45,7 @@ const props = defineProps<{
 
 const pages = ref<number[]>([])
 const canvasRefs = ref<HTMLCanvasElement[]>([])
+const isRendering = ref(false)
 let pdfBlob: Blob | null = null
 
 const plugins = {
@@ -55,7 +56,19 @@ const plugins = {
 }
 
 const renderPreview = async () => {
+  if (!props.data || !props.config.id) return
+  
+  // Prevent multiple simultaneous renders
+  if (isRendering.value) {
+    console.debug('[FlyerPreviewPdfme] Already rendering, skipping')
+    return
+  }
+  
+  isRendering.value = true
+  
   try {
+    console.debug('[FlyerPreviewPdfme] renderPreview called', { format: props.config.id, dataKeys: Object.keys(props.data) })
+    
     // Versuche zuerst, das Template aus dem TemplateSet zu holen
     let template = null
     if (props.templateSet && props.templateSet.templates && props.templateSet.templates[props.config.id]) {
@@ -69,12 +82,15 @@ const renderPreview = async () => {
     }
     
     if (!template) {
-      console.error('Template not found:', props.config.id)
+      console.error('Template not found for format:', props.config.id)
       return
     }
     
+    // Deep clone um Proxy-Probleme zu vermeiden
+    template = JSON.parse(JSON.stringify(template))
+    
     // Stelle sicher, dass basePdf das richtige Format hat
-    if (template.basePdf && !template.basePdf.padding) {
+    if (template.basePdf && typeof template.basePdf === 'object' && !template.basePdf.padding) {
       template.basePdf.padding = [0, 0, 0, 0] as [number, number, number, number]
     }
     
@@ -98,10 +114,21 @@ const renderPreview = async () => {
     
     console.debug('[FlyerPreviewPdfme] Final template for rendering', filteredTemplate)
     
-    const inputs = [flyerDataToInput(props.data)]
+    // Erstelle Inputs für jede Seite des Templates
+    const baseInput = flyerDataToInput(props.data)
+    const inputs = filteredTemplate.schemas.map(() => baseInput)
+    
     if (!inputs[0]) {
       console.error('Failed to convert flyer data to input')
       return
+    }
+
+    // Clear previous canvas content
+    if (canvasRefs.value.length > 0) {
+      const ctx = canvasRefs.value[0].getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRefs.value[0].width, canvasRefs.value[0].height)
+      }
     }
 
     // Generate PDF
@@ -153,7 +180,9 @@ const renderPreview = async () => {
       }).promise
     }
   } catch (error) {
-    console.error('Failed to render preview:', error)
+    console.error('[FlyerPreviewPdfme] Failed to render preview:', error)
+  } finally {
+    isRendering.value = false
   }
 }
 

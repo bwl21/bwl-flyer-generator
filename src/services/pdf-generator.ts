@@ -17,11 +17,44 @@ export const generatePdf = async (
   data: FlyerData,
   format: LayoutFormat
 ): Promise<Uint8Array> => {
-  const template = getTemplate(format)
-  const inputs = [flyerDataToInput(data)]
+  let template = getTemplate(format)
+  
+  if (!template) {
+    throw new Error(`Template not found for format: ${format}`)
+  }
+
+  // Deep clone um Proxy-Probleme zu vermeiden
+  template = JSON.parse(JSON.stringify(template))
+  
+  // Stelle sicher, dass basePdf das richtige Format hat
+  if (template.basePdf && typeof template.basePdf === 'object' && 'width' in template.basePdf && !template.basePdf.padding) {
+    (template.basePdf as any).padding = [0, 0, 0, 0] as [number, number, number, number]
+  }
+  
+  // Filtere image-Felder aus dem Template, wenn keine Bilddaten vorhanden sind
+  const filteredTemplate = {
+    ...template,
+    schemas: template.schemas.map((page: any[]) =>
+      page.filter((field: any) => {
+        if (field.type === 'image') {
+          // Prüfe ob Bilddaten vorhanden sind
+          const imageData = (data as any)[field.name] || (data as any)[`${field.name}_url`]
+          if (!imageData) {
+            console.debug(`[pdf-generator] Filtering out image field "${field.name}" - no image data provided`)
+            return false
+          }
+        }
+        return true
+      })
+    )
+  }
+  
+  // Erstelle Inputs für jede Seite des Templates
+  const baseInput = flyerDataToInput(data)
+  const inputs = filteredTemplate.schemas.map(() => baseInput)
 
   const pdf = await generate({
-    template,
+    template: filteredTemplate,
     inputs,
     plugins,
   })
