@@ -3,7 +3,7 @@
     <header class="manager-header">
       <div>
         <h1>Template-Set Verwaltung</h1>
-        <p class="subtitle">{{ currentTemplateSet?.name || 'Kein Set geladen' }}</p>
+        <p class="subtitle">{{ currentTemplateSet?.name || 'Kein Set' }} geladen</p>
       </div>
       <div class="header-actions">
         <button @click="fetchTemplateSets" class="btn-secondary">
@@ -35,7 +35,6 @@
     </header>
 
     <section class="set-list" v-if="templateSets.length && !editorVisible">
-      <h2>Verfügbare Template-Sets</h2>
       <div class="table-controls">
         <input v-model="filterText" type="text" placeholder="🔍 Suchen..." class="filter-input pretty-input" />
       </div>
@@ -67,136 +66,11 @@
       </table>
     </section>
 
-    <TemplateSetEditor v-if="editorVisible" :template-set="editorTemplateSet" @close="closeEditor" />
-
-    <div v-if="currentTemplateSet && !editorVisible" class="manager-content">
-      <section class="info-card">
-        <h2>Main Template: {{ currentTemplateSet.mainTemplate }}</h2>
-        <p>Änderungen am Main Template können auf andere Templates synchronisiert werden.</p>
-      </section>
-
-      <div class="templates-grid">
-        <div
-          v-for="(template, id) in currentTemplateSet.templates"
-          :key="id"
-          class="template-card"
-          :class="{ 'is-main': id === currentTemplateSet.mainTemplate }"
-        >
-          <div class="card-header">
-            <h3>{{ template.name || id }}</h3>
-            <span v-if="id === currentTemplateSet.mainTemplate" class="badge-main">Main</span>
-          </div>
-          <div class="card-body">
-            <div class="template-info">
-              <p><strong>Format:</strong> {{ template.basePdf?.width ?? '-' }}×{{ template.basePdf?.height ?? '-' }}mm</p>
-              <p><strong>Felder:</strong> {{ template.schemas?.[0]?.length ?? 0 }}</p>
-            </div>
-            <div v-if="id !== currentTemplateSet.mainTemplate" class="diff-section">
-              <div v-if="getDiffCount(id) > 0" class="diff-warning">
-                ⚠️ {{ getDiffCount(id) }} Unterschiede zum Main Template
-              </div>
-              <div v-else class="diff-success">
-                ✓ Synchron mit Main Template
-              </div>
-            </div>
-          </div>
-          <div class="card-actions">
-            <button @click="editTemplate(id)" class="btn-primary">
-              Bearbeiten
-            </button>
-            <button
-              v-if="id !== currentTemplateSet.mainTemplate"
-              @click="showSyncDialog(id)"
-              :disabled="getDiffCount(id) === 0"
-              class="btn-secondary"
-            >
-              Synchronisieren
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <section class="global-actions">
-        <button @click="syncAllTemplates" class="btn-primary btn-large">
-          Alle Templates mit Main synchronisieren
-        </button>
-        <button @click="validateTemplates" class="btn-secondary">
-          Templates validieren
-        </button>
-      </section>
-
-      <div v-if="validationResult" class="validation-results">
-        <h3>Validierungs-Ergebnisse</h3>
-        <div v-if="validationResult.valid" class="success-message">
-          ✓ Alle Templates sind konsistent
-        </div>
-        <div v-if="validationResult.errors.length > 0" class="error-messages">
-          <h4>Fehler:</h4>
-          <ul>
-            <li v-for="(error, idx) in validationResult.errors" :key="idx">{{ error }}</li>
-          </ul>
-        </div>
-        <div v-if="validationResult.warnings.length > 0" class="warning-messages">
-          <h4>Warnungen:</h4>
-          <ul>
-            <li v-for="(warning, idx) in validationResult.warnings" :key="idx">{{ warning }}</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div v-else class="empty-state">
-      <p>📦 Kein Template-Set geladen</p>
+    <div v-else-if="!templateSets.length && !editorVisible" class="empty-state">
+      <p>📦 Keine Template-Sets gefunden</p>
       <button @click="fetchTemplateSets" class="btn-primary">
         Sets neu laden
       </button>
-    </div>
-
-    <div v-if="syncDialogVisible" class="modal-overlay" @click.self="closeSyncDialog">
-      <div class="modal-content">
-        <header class="modal-header">
-          <h2>Template synchronisieren</h2>
-          <button class="close-btn" @click="closeSyncDialog">×</button>
-        </header>
-        <div class="modal-body">
-          <p>
-            Synchronisiere <strong>{{ syncTargetId }}</strong> mit Main Template
-            <strong>{{ currentTemplateSet?.mainTemplate }}</strong>
-          </p>
-          <div v-if="currentDiff.length > 0" class="diff-preview">
-            <h3>Änderungen ({{ currentDiff.length }}):</h3>
-            <div v-for="(diff, idx) in currentDiff" :key="idx" class="diff-item">
-              <div class="diff-field">{{ diff.fieldName }}</div>
-              <div v-if="diff.property" class="diff-change">
-                <span class="property">{{ diff.property }}:</span>
-                <span class="old-value">{{ diff.targetValue }}</span>
-                →
-                <span class="new-value">{{ diff.mainValue }}</span>
-              </div>
-              <div v-else class="diff-message">{{ diff.message }}</div>
-            </div>
-          </div>
-          <div class="sync-options">
-            <h3>Was synchronisieren?</h3>
-            <label>
-              <input type="checkbox" v-model="syncOptions.colors" />
-              Farben (fontColor, color)
-            </label>
-            <label>
-              <input type="checkbox" v-model="syncOptions.alignment" />
-              Ausrichtung (alignment)
-            </label>
-            <label>
-              <input type="checkbox" v-model="syncOptions.types" />
-              Feldtypen (type, name)
-            </label>
-          </div>
-        </div>
-        <footer class="modal-footer">
-          <button @click="closeSyncDialog" class="btn-secondary">Abbrechen</button>
-          <button @click="performSync" class="btn-primary">Synchronisieren</button>
-        </footer>
-      </div>
     </div>
 
     <div v-if="statusMessage" class="status-toast" :class="statusType">
@@ -206,7 +80,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, getCurrentInstance, onMounted, inject } from 'vue'
+import { computed, ref, getCurrentInstance, onMounted, inject, watch } from 'vue'
+import { toast } from '../services/toast-service'
+import type { Ref } from 'vue'
+import type { TemplateSet } from '../types/flyer'
 
 const app = getCurrentInstance()?.appContext.config.globalProperties
 
@@ -225,9 +102,18 @@ function toggleSort() {
 
 // Tab switching and set loading
 const activeTab = inject('activeTab')
-import type { Ref } from 'vue'
-import type { TemplateSet } from '../types/flyer'
 const selectedTemplateSet = inject<Ref<TemplateSet|null>>('selectedTemplateSet')
+
+// Verwende selectedTemplateSet statt currentTemplateSet
+const currentTemplateSet = computed(() => selectedTemplateSet.value)
+
+// Watch für Änderungen
+watch(selectedTemplateSet, (newSet) => {
+  console.debug('[TemplateSetManager] selectedTemplateSet changed', newSet)
+  if (newSet) {
+    toast.info('Template-Set geladen', `Template-Set "${newSet.name}" ist jetzt aktiv`)
+  }
+})
 
 function editSet(name) {
   console.debug('[TemplateSetManager] editSet called', name)
@@ -259,13 +145,14 @@ function selectSet(name) {
       console.debug('[TemplateSetManager] selectedTemplateSet after setting', selectedTemplateSet.value)
       activeTab.value = 'generator'
       console.debug('[TemplateSetManager] activeTab set to generator', activeTab.value)
+      toast.success('Template-Set geladen', `Template-Set "${set.name}" wurde ausgewählt`)
     } else {
-      showStatus('Set konnte nicht geladen werden', 'error')
+      toast.error('Fehler', 'Set konnte nicht geladen werden')
       console.error('[TemplateSetManager] Set konnte nicht geladen werden', name)
     }
   }).catch(error => {
     console.error('[TemplateSetManager] Error loading set', error)
-    showStatus('Fehler beim Laden des Sets', 'error')
+    toast.error('Fehler', 'Fehler beim Laden des Sets')
   })
 }
 
@@ -274,11 +161,10 @@ async function deleteSet(name) {
   if (confirm(`Set "${name}" wirklich löschen?`)) {
     await templateSetStorage.deleteTemplateSet(name)
     fetchTemplateSets()
-    showStatus('Set gelöscht', 'success')
+    toast.success('Set gelöscht', `Template-Set "${name}" wurde gelöscht`)
     console.debug('[TemplateSetManager] Set gelöscht', name)
   }
 }
-import { ref, onMounted } from 'vue'
 import { TemplateSyncService, type FieldDiff, type ValidationResult } from '../services/template-sync'
 import { TemplateLoader } from '../services/template-loader'
 import { templateSetStorage } from '../services/template-set-storage'
@@ -288,7 +174,7 @@ const syncService = new TemplateSyncService()
 const loader = new TemplateLoader()
 
 const templateSets = ref<string[]>([])
-const currentTemplateSet = ref<any>(null)
+// currentTemplateSet wird jetzt aus selectedTemplateSet computed
 const syncDialogVisible = ref(false)
 const syncTargetId = ref('')
 const currentDiff = ref<FieldDiff[]>([])
@@ -308,12 +194,13 @@ const editorVisible = ref(false)
 const editorTemplateSet = ref(null)
 
 function showCreateDialog() {
-  newSetName.value = ''
   createDialogVisible.value = true
+  newSetName.value = ''
 }
 
 function closeCreateDialog() {
   createDialogVisible.value = false
+  newSetName.value = ''
 }
 
 async function fetchTemplateSets() {
@@ -325,32 +212,25 @@ onMounted(fetchTemplateSets)
 async function selectTemplateSet(name: string) {
   const set = await templateSetStorage.loadTemplateSet(name)
   if (set) {
-    currentTemplateSet.value = set
+    selectedTemplateSet.value = set
     await templateSetStorage.setActiveTemplateSet(name)
-    showStatus(`Template-Set "${set.name}" geladen`, 'success')
-    openEditorForSet(name)
+    toast.success('Template-Set geladen', `Template-Set "${set.name}" wurde ausgewählt`)
   } else {
-    showStatus('Template-Set konnte nicht geladen werden', 'error')
+    toast.error('Fehler', 'Template-Set konnte nicht geladen werden')
   }
 }
 
-function getDiffCount(templateId: string): number {
-  if (!currentTemplateSet.value) return 0
-  return syncService.getDiffCount(currentTemplateSet.value, templateId)
-}
-
-function editTemplate(templateId: string) {
-  showStatus(`Editor für "${templateId}" öffnen (noch nicht implementiert)`, 'info')
-}
 async function createDemoTemplateSet() {
   const name = newSetName.value.trim()
   if (!name) return
+  
   // Duplikatsprüfung
   const existingSets = await templateSetStorage.listTemplateSets()
   if (existingSets.includes(name)) {
-    showStatus('Set-Name existiert bereits', 'error')
+    toast.error('Fehler', 'Set-Name existiert bereits')
     return
   }
+  
   const demoSet = {
     version: '1.0',
     name,
@@ -365,81 +245,11 @@ async function createDemoTemplateSet() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
+  
   await templateSetStorage.saveTemplateSet(demoSet)
   fetchTemplateSets()
-  showStatus('Set erstellt', 'success')
+  toast.success('Set erstellt', `Template-Set "${name}" wurde erstellt`)
   closeCreateDialog()
-}
-
-function showSyncDialog(templateId: string) {
-  if (!currentTemplateSet.value) return
-  syncTargetId.value = templateId
-  currentDiff.value = syncService.getDiff(currentTemplateSet.value, templateId)
-  syncDialogVisible.value = true
-}
-
-function closeSyncDialog() {
-  syncDialogVisible.value = false
-  syncTargetId.value = ''
-  currentDiff.value = []
-}
-
-function performSync() {
-  if (!currentTemplateSet.value || !syncTargetId.value) return
-  const properties: string[] = []
-  if (syncOptions.value.colors) properties.push('fontColor', 'color')
-  if (syncOptions.value.alignment) properties.push('alignment')
-  if (syncOptions.value.types) properties.push('type', 'name')
-  currentTemplateSet.value = syncService.syncFromMain(currentTemplateSet.value, {
-    templates: [syncTargetId.value],
-    properties,
-  })
-  showStatus(`Template "${syncTargetId.value}" synchronisiert`, 'success')
-  closeSyncDialog()
-}
-
-function syncAllTemplates() {
-  if (!currentTemplateSet.value) return
-  currentTemplateSet.value = syncService.syncFromMain(currentTemplateSet.value)
-  showStatus('Alle Templates synchronisiert', 'success')
-}
-
-function validateTemplates() {
-  if (!currentTemplateSet.value) return
-  validationResult.value = syncService.validate(currentTemplateSet.value)
-  if (validationResult.value.valid) {
-    showStatus('Validierung erfolgreich', 'success')
-  } else {
-    showStatus('Validierung fehlgeschlagen', 'error')
-  }
-}
-
-function downloadTemplateSet() {
-  if (!currentTemplateSet.value) return
-  loader.downloadAsJson(currentTemplateSet.value)
-  showStatus('Template-Set exportiert', 'success')
-}
-
-function showStatus(message: string, type: 'success' | 'error' | 'info') {
-  statusMessage.value = message
-  statusType.value = type
-  setTimeout(() => {
-    statusMessage.value = ''
-  }, 3000)
-}
-
-async function openEditorForSet(name: string) {
-  const set = await templateSetStorage.loadTemplateSet(name)
-  if (set) {
-    editorTemplateSet.value = set
-    editorVisible.value = true
-  } else {
-    showStatus('Template-Set konnte nicht geladen werden', 'error')
-  }
-}
-function closeEditor() {
-  editorVisible.value = false
-  editorTemplateSet.value = null
 }
 </script>
 

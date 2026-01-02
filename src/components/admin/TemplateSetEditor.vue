@@ -27,14 +27,12 @@ onMounted(() => {
 })
 <template>
   <div class="template-admin">
-    <header class="admin-header">
-      <h1>Admin – Vorlagensets</h1>
-    </header>
+
 
     <div class="admin-content">
       <!-- Template Set Management -->
       <section class="section-card">
-        <h2 class="section-title">Vorlagenset verwalten</h2>
+        <h2 class="section-title">aktives TemplateSet</h2>
         <div class="template-set-actions">
           <span class="template-set-name">
             {{ templateSetName }}
@@ -270,6 +268,7 @@ onMounted(() => {
 
 <script setup lang="ts">
 import { ref, computed, nextTick, inject, watch, onMounted } from 'vue'
+import { toast } from '../../services/toast-service'
 // Reagiere auf Tab-Wechsel und lade das aktuelle Set neu, wenn auf Admin gewechselt wird
 const activeTab = inject('activeTab', ref('generator'))
 watch(activeTab, (tab) => {
@@ -305,7 +304,7 @@ function exportTemplatesJson() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  setStatus('Templates als JSON exportiert', 'success');
+  toast.success('Templates exportiert', 'Templates wurden als JSON exportiert');
 }
 // Dialog-Logik für neues Layout
 const showAddLayoutDialog = ref(false)
@@ -329,11 +328,11 @@ const addLayoutToSet = () => {
   // ID generieren (z.B. aus Name)
   const id = newLayout.value.name.trim().toLowerCase().replace(/\s+/g, '-') as LayoutFormat
   if (!id || !newLayout.value.name) {
-    setStatus('Name darf nicht leer sein', 'error')
+    toast.error('Fehler', 'Name darf nicht leer sein')
     return
   }
   if (templateEntries.value.some(e => e.id === id)) {
-    setStatus('Layout mit dieser ID existiert bereits', 'error')
+    toast.error('Fehler', 'Layout mit dieser ID existiert bereits')
     return
   }
   
@@ -353,7 +352,7 @@ const addLayoutToSet = () => {
   
   console.debug('[TemplateSetEditor] Adding new layout:', { id, name: newLayout.value.name })
   saveTemplatesToStorage()
-  setStatus(`Layout \"${newLayout.value.name}\" hinzugefügt`, 'success')
+  toast.success('Layout hinzugefügt', `Layout "${newLayout.value.name}" wurde erfolgreich hinzugefügt`)
   showAddLayoutDialog.value = false
 }
 import { Designer } from '@pdfme/ui'

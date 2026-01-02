@@ -1,41 +1,36 @@
 <template>
-  <div id="app">
-    <!-- Tab Navigation -->
-    <nav class="app-nav">
-      <button
-        type="button"
-        class="nav-tab"
-        :class="{ active: activeTab === 'generator' }"
-        @click="activeTab = 'generator'"
-      >
-        Flyer Generator
-      </button>
-      <button
-        type="button"
-        class="nav-tab"
-        :class="{ active: activeTab === 'admin' }"
-        @click="activeTab = 'admin'"
-      >
-        Admin – Vorlagen
-      </button>
-      <button
-        type="button"
-        class="nav-tab"
-        :class="{ active: activeTab === 'manager' }"
-        @click="activeTab = 'manager'"
-      >
-        TemplateSet-Manager
-      </button>
-    </nav>
+  <div class="app">
+    <header class="app-header">
+      <h1>Flyer Generator</h1>
+      <nav class="tab-navigation">
+        <button
+          :class="['tab-button', { active: activeTab === 'generator' }]"
+          @click="switchTab('generator')"
+        >
+          Flyer Generator
+        </button>
+        <button
+          :class="['tab-button', { active: activeTab === 'admin' }]"
+          @click="switchTab('admin')"
+        >
+          TemplateSet Editor
+        </button>
+        <button
+          :class="['tab-button', { active: activeTab === 'manager' }]"
+          @click="switchTab('manager')"
+        >
+          TemplateSet-Manager
+        </button>
+      </nav>
+    </header>
 
-    <!-- Content -->
-    <main class="app-content">
-      <FlyerGenerator v-if="activeTab === 'generator'" />
+    <main class="app-main">
+      <FlyerGenerator v-if="activeTab === 'generator'" :key="generatorKey" />
       <TemplateSetEditor v-else-if="activeTab === 'admin'" />
       <TemplateSetManager v-else-if="activeTab === 'manager'" />
     </main>
 
-    <Toast />
+    <ToastNotification />
   </div>
 </template>
 
@@ -44,11 +39,20 @@ import { ref, provide, getCurrentInstance } from 'vue'
 import FlyerGenerator from './components/flyer-generator/FlyerGenerator.vue'
 import TemplateSetEditor from './components/admin/TemplateSetEditor.vue'
 import TemplateSetManager from './components/TemplateSetManager.vue'
-import Toast from './components/common/Toast.vue'
+import ToastNotification from './components/common/ToastNotification.vue'
 
 type TabId = 'generator' | 'admin' | 'manager'
 const activeTab = ref<TabId>('generator')
 const selectedTemplateSet = ref(null)
+const generatorKey = ref(0)
+
+// Tab switching function
+const switchTab = (tab: TabId) => {
+  activeTab.value = tab
+  if (tab === 'generator') {
+    generatorKey.value++ // Force re-render of FlyerGenerator
+  }
+}
 
 // Provide for inject (composition API)
 provide('activeTab', activeTab)
@@ -84,15 +88,25 @@ body {
   min-height: 100vh;
 }
 
-.app-nav {
-  display: flex;
-  gap: 0;
+.app-header {
   background: white;
   border-bottom: 1px solid #e5e7eb;
-  padding: 0 1rem;
+  padding: 1rem;
 }
 
-.nav-tab {
+.app-header h1 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.tab-navigation {
+  display: flex;
+  gap: 0;
+}
+
+.tab-button {
   padding: 1rem 1.5rem;
   border: none;
   background: transparent;
@@ -104,17 +118,17 @@ body {
   transition: all 0.15s ease;
 }
 
-.nav-tab:hover {
+.tab-button:hover {
   color: #374151;
   background: #f9fafb;
 }
 
-.nav-tab.active {
+.tab-button.active {
   color: #3b82f6;
   border-bottom-color: #3b82f6;
 }
 
-.app-content {
+.app-main {
   padding: 1rem;
 }
 </style>
