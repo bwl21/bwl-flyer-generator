@@ -131,6 +131,19 @@ const searchQuery = ref('')
 const appointments = ref<Appointment[]>([])
 const loading = ref(false)
 const error = ref('')
+const showMapping = ref(false)
+const fieldMapping = ref<FieldMapping>(DEFAULT_MAPPING)
+const appointmentFieldLabels = APPOINTMENT_FIELD_LABELS
+
+// Reset mapping to default
+const resetMapping = () => {
+  fieldMapping.value = { ...DEFAULT_MAPPING }
+}
+
+// Save current mapping
+const saveCurrentMapping = () => {
+  saveMapping(fieldMapping.value)
+}
 
 // Helper to get base appointment
 const getBase = (appointment: Appointment): AppointmentBase => {
@@ -225,13 +238,18 @@ const handleSearch = () => {
 }
 
 const selectAppointment = (appointment: Appointment) => {
-  emit('select', appointment)
+  // Wandle das Appointment in das richtige Format um
+  const base = getBase(appointment)
+  const mappedData = applyMapping(base, fieldMapping.value)
+  emit('select', mappedData)
   emit('close')
 }
 
 // Load appointments on mount
 onMounted(() => {
   loadAppointments()
+  // Lade das gespeicherte Mapping
+  fieldMapping.value = loadMapping()
 })
 </script>
 

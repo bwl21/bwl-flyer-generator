@@ -78,7 +78,25 @@ const renderPreview = async () => {
       template.basePdf.padding = [0, 0, 0, 0] as [number, number, number, number]
     }
     
-    console.debug('[FlyerPreviewPdfme] Final template for rendering', template)
+    // Filtere image-Felder aus dem Template, wenn keine Bilddaten vorhanden sind
+    const filteredTemplate = {
+      ...template,
+      schemas: template.schemas.map((page: any[]) =>
+        page.filter((field: any) => {
+          if (field.type === 'image') {
+            // Prüfe ob Bilddaten vorhanden sind
+            const imageData = (props.data as any)[field.name] || (props.data as any)[`${field.name}_url`]
+            if (!imageData) {
+              console.debug(`[FlyerPreviewPdfme] Filtering out image field "${field.name}" - no image data provided`)
+              return false
+            }
+          }
+          return true
+        })
+      )
+    }
+    
+    console.debug('[FlyerPreviewPdfme] Final template for rendering', filteredTemplate)
     
     const inputs = [flyerDataToInput(props.data)]
     if (!inputs[0]) {
@@ -88,7 +106,7 @@ const renderPreview = async () => {
 
     // Generate PDF
     const pdf = await generate({
-      template,
+      template: filteredTemplate,
       inputs,
       plugins,
     })

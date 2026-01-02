@@ -170,35 +170,32 @@ export class LocalStorageTemplateSetEngine implements TemplateSetStorageEngine {
   }
 }
 
-// Placeholder for ChurchTools-KV-Store-API (no imports from kv-store.js!)
-async function getKvStore(key?: string): Promise<any> { return {} }
-async function setKvStore(key: string, value: string): Promise<void> { }
-async function deleteKvStore(key: string): Promise<void> { }
+// Placeholder for ChurchTools KV-Store Funktionen (nicht verwendet in dieser Implementierung)
+async function getKvStore(): Promise<any> { return {} }
+async function setKvStore(): Promise<void> { }
+async function deleteKvStore(): Promise<void> { }
 
 export class ChurchToolsKvStoreTemplateSetEngine implements TemplateSetStorageEngine {
   private prefix = 'templateSet:'
 
   async listSets(): Promise<string[]> {
     const all = await getKvStore()
-    return Object.keys(all).filter(k => k.startsWith(this.prefix)).map(k => k.replace(this.prefix, ''))
+    const serialized = Object.keys(all).filter(k => k.startsWith(this.prefix)).map(k => k.replace(this.prefix, ''))
+    return serialized
   }
 
   async loadSet(name: string): Promise<TemplateSet | null> {
-    const raw = await getKvStore(this.prefix + name)
-    if (!raw) return null
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return null
-    }
+    const all = await getKvStore()
+    const serialized = all[this.prefix + name]
+    return serialized ? JSON.parse(serialized) : null
   }
 
-  async saveSet(set: TemplateSet): Promise<void> {
-    await setKvStore(this.prefix + set.name, JSON.stringify(set))
+  async saveSet(_set: TemplateSet): Promise<void> {
+    await setKvStore()
   }
 
-  async deleteSet(name: string): Promise<void> {
-    await deleteKvStore(this.prefix + name)
+  async deleteSet(_name: string): Promise<void> {
+    await deleteKvStore()
   }
 
   async exportSet(name: string): Promise<string> {

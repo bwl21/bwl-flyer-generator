@@ -1,4 +1,12 @@
-import type { Toast } from '../components/common/ToastNotification.vue'
+// Toast-Typen definieren
+export type ToastType = {
+  id: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  title: string
+  message?: string
+  duration?: number
+  persistent?: boolean
+}
 
 export interface ToastOptions {
   duration?: number
@@ -13,7 +21,7 @@ class ToastService {
     this.toastInstance = instance
   }
 
-  private showToast(type: Toast['type'], title: string, message?: string, options?: ToastOptions) {
+  private showToast(type: ToastType['type'], title: string, message?: string, options?: ToastOptions) {
     if (!this.toastInstance) {
       console.warn('Toast instance not available. Falling back to console.')
       console[type === 'error' ? 'error' : 'log'](`${title}: ${message || ''}`)

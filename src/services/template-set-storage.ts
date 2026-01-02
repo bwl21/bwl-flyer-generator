@@ -66,7 +66,11 @@ export class LocalStorageTemplateSetEngine implements TemplateSetStorageEngine {
 
 // Service-Wrapper für flexible Engine-Auswahl
 export class TemplateSetStorageService {
-  constructor(private engine: TemplateSetStorageEngine) {}
+  private engine: TemplateSetStorageEngine
+
+  constructor(engine: TemplateSetStorageEngine) {
+    this.engine = engine
+  }
 
   listTemplateSets() {
     return this.engine.listTemplateSets();
