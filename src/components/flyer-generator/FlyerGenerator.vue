@@ -273,7 +273,7 @@ const downloadZip = async () => {
   setStatus('PDFs werden erstellt...', 'info')
 
   try {
-    await generateAndDownloadZip(flyerData, (progress: ZipProgress) => {
+    await generateAndDownloadZip(flyerData, selectedTemplateSet.value, (progress: ZipProgress) => {
       switch (progress.stage) {
         case 'generating':
           setStatus(`PDF ${progress.current}/${progress.total} wird erstellt...`, 'info')

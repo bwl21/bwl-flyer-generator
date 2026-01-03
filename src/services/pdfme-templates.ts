@@ -236,7 +236,7 @@ export const getTemplate = (format: LayoutFormat): Template => {
 }
 
 // Create a basic template for custom layouts
-const createBasicTemplate = (format: string): Template => {
+const createBasicTemplate = (_format: string): Template => {
   // Default to A5 portrait for unknown formats
   const width = 148
   const height = 210

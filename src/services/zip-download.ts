@@ -39,6 +39,7 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
 // Main function: generate all PDFs and download as ZIP
 export const generateAndDownloadZip = async (
   data: FlyerData,
+  templateSet?: any,
   onProgress?: (progress: ZipProgress) => void
 ): Promise<void> => {
   // Validate required fields
@@ -47,7 +48,7 @@ export const generateAndDownloadZip = async (
   }
 
   // Generate PDFs
-  const pdfs = await generateAllPdfs(data, (format, index, total) => {
+  const pdfs = await generateAllPdfs(data, templateSet, (format, index, total) => {
     if (onProgress) {
       onProgress({
         stage: 'generating',

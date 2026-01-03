@@ -114,9 +114,13 @@ const renderPreview = async () => {
     
     console.debug('[FlyerPreviewPdfme] Final template for rendering', filteredTemplate)
     
-    // Erstelle Inputs für jede Seite des Templates
+    // Erstelle Input für das Template (nur einen für alle Seiten)
     const baseInput = flyerDataToInput(props.data)
-    const inputs = filteredTemplate.schemas.map(() => baseInput)
+    const inputs = [baseInput] // Nur ein Input für alle Seiten
+    
+    console.debug(`[FlyerPreviewPdfme] Template has ${filteredTemplate.schemas.length} pages`)
+    console.debug(`[FlyerPreviewPdfme] Created ${inputs.length} input`)
+    console.debug(`[FlyerPreviewPdfme] Template schemas:`, filteredTemplate.schemas)
     
     if (!inputs[0]) {
       console.error('Failed to convert flyer data to input')
@@ -161,10 +165,19 @@ const renderPreview = async () => {
     for (let i = 0; i < pdfDoc.numPages; i++) {
       const page = await pdfDoc.getPage(i + 1)
       const canvas = canvasRefs.value[i]
-      if (!canvas) continue
+      
+      console.debug(`[FlyerPreviewPdfme] Rendering page ${i + 1}/${pdfDoc.numPages}, canvas:`, canvas)
+      
+      if (!canvas) {
+        console.warn(`[FlyerPreviewPdfme] No canvas found for page ${i + 1}, canvasRefs:`, canvasRefs.value)
+        continue
+      }
 
       const context = canvas.getContext('2d')
-      if (!context) continue
+      if (!context) {
+        console.warn(`[FlyerPreviewPdfme] No context found for page ${i + 1}`)
+        continue
+      }
 
       // Calculate scale to fit width (280px)
       const viewport = page.getViewport({ scale: 1 })
@@ -174,10 +187,14 @@ const renderPreview = async () => {
       canvas.width = scaledViewport.width
       canvas.height = scaledViewport.height
 
+      console.debug(`[FlyerPreviewPdfme] Rendering page ${i + 1} with size ${scaledViewport.width}x${scaledViewport.height}`)
+
       await page.render({
         canvasContext: context,
         viewport: scaledViewport,
       }).promise
+      
+      console.debug(`[FlyerPreviewPdfme] Successfully rendered page ${i + 1}`)
     }
   } catch (error) {
     console.error('[FlyerPreviewPdfme] Failed to render preview:', error)

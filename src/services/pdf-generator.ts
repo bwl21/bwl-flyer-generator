@@ -15,9 +15,21 @@ const plugins = {
 // Generate a single PDF for a specific format
 export const generatePdf = async (
   data: FlyerData,
-  format: LayoutFormat
+  format: LayoutFormat,
+  templateSet?: any
 ): Promise<Uint8Array> => {
-  let template = getTemplate(format)
+  let template = null
+  
+  // Versuche zuerst, das Template aus dem TemplateSet zu holen
+  if (templateSet && templateSet.templates && templateSet.templates[format]) {
+    // Deep clone um Proxy-Probleme zu vermeiden
+    template = JSON.parse(JSON.stringify(templateSet.templates[format]))
+    console.debug(`[pdf-generator] Using template from templateSet for ${format}`)
+  } else {
+    // Fallback zur Standard-Funktion
+    template = getTemplate(format)
+    console.debug(`[pdf-generator] Using fallback template for ${format}`)
+  }
   
   if (!template) {
     throw new Error(`Template not found for format: ${format}`)
@@ -49,9 +61,9 @@ export const generatePdf = async (
     )
   }
   
-  // Erstelle Inputs für jede Seite des Templates
+  // Erstelle Input für das Template (nur einen für alle Seiten)
   const baseInput = flyerDataToInput(data)
-  const inputs = filteredTemplate.schemas.map(() => baseInput)
+  const inputs = [baseInput] // Nur ein Input für alle Seiten
 
   const pdf = await generate({
     template: filteredTemplate,
@@ -65,19 +77,29 @@ export const generatePdf = async (
 // Generate all PDFs for all formats
 export const generateAllPdfs = async (
   data: FlyerData,
+  templateSet?: any,
   onProgress?: (format: LayoutFormat, index: number, total: number) => void
 ): Promise<Map<LayoutFormat, Uint8Array>> => {
-  const formats = getAllFormats()
+  // Get formats from templateSet or fallback to default
+  let formats: string[]
+  if (templateSet && templateSet.templates) {
+    formats = Object.keys(templateSet.templates)
+    console.debug(`[pdf-generator] Using ${formats.length} formats from templateSet`)
+  } else {
+    formats = getAllFormats()
+    console.debug(`[pdf-generator] Using ${formats.length} default formats`)
+  }
+  
   const results = new Map<LayoutFormat, Uint8Array>()
 
   for (let i = 0; i < formats.length; i++) {
     const format = formats[i]
     if (onProgress) {
-      onProgress(format, i, formats.length)
+      onProgress(format as LayoutFormat, i, formats.length)
     }
 
-    const pdf = await generatePdf(data, format)
-    results.set(format, pdf)
+    const pdf = await generatePdf(data, format as LayoutFormat, templateSet)
+    results.set(format as LayoutFormat, pdf)
   }
 
   return results
@@ -85,5 +107,11 @@ export const generateAllPdfs = async (
 
 // Get filename for a format
 export const getFilename = (format: LayoutFormat): string => {
-  return LAYOUT_CONFIGS[format].filename
+  // Try to get filename from LAYOUT_CONFIGS first
+  if (LAYOUT_CONFIGS[format]) {
+    return LAYOUT_CONFIGS[format].filename
+  }
+  
+  // Fallback for custom layouts
+  return `flyer-${format}.pdf`
 }
