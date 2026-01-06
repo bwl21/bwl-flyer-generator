@@ -245,21 +245,61 @@ onMounted(() => {
         </div>
         <div class="editor-body">
           <div class="form-group">
-            <label for="layout-name">Name</label>
-            <input id="layout-name" v-model="newLayout.name" class="form-control" placeholder="Name des Layouts" />
+            <label>Papierformat</label>
+            <select v-model="newLayout.format" class="form-control">
+              <option v-for="size in paperSizes" :key="size.id" :value="size.id">
+                {{ size.name }} ({{ PAPER_SIZES[size.id].width }} × {{ PAPER_SIZES[size.id].height }} mm)
+              </option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="layout-width">Breite (mm)</label>
-            <input id="layout-width" type="number" v-model.number="newLayout.width" class="form-control" min="1" />
+            <label>Ausrichtung</label>
+            <div class="form-check">
+              <input 
+                id="orientation-portrait" 
+                v-model="newLayout.orientation" 
+                type="radio" 
+                value="portrait" 
+                class="form-check-input"
+              >
+              <label for="orientation-portrait" class="form-check-label">Hochformat</label>
+            </div>
+            <div class="form-check">
+              <input 
+                id="orientation-landscape" 
+                v-model="newLayout.orientation" 
+                type="radio" 
+                value="landscape" 
+                class="form-check-input"
+              >
+              <label for="orientation-landscape" class="form-check-label">Querformat</label>
+            </div>
           </div>
           <div class="form-group">
-            <label for="layout-height">Höhe (mm)</label>
-            <input id="layout-height" type="number" v-model.number="newLayout.height" class="form-control" min="1" />
+            <label>Name des Layouts</label>
+            <input 
+              v-model="newLayout.name" 
+              type="text" 
+              class="form-control" 
+              :placeholder="generatedLayoutName"
+            >
+            <small class="form-text text-muted">Leer lassen, um den Standardnamen zu verwenden: {{ generatedLayoutName }}</small>
+          </div>
+          <div class="form-group mt-3 p-3 bg-light rounded">
+            <div class="mb-2"><strong>Vorschau:</strong></div>
+            <div>Name: {{ newLayout.name || generatedLayoutName }}</div>
+            <div>Format: {{ PAPER_SIZES[newLayout.format]?.name }} ({{ newLayout.orientation === 'portrait' ? 'Hochformat' : 'Querformat' }})</div>
+            <div>Abmessungen: 
+              {{ newLayout.orientation === 'portrait' 
+                ? `${Math.min(PAPER_SIZES[newLayout.format]?.width, PAPER_SIZES[newLayout.format]?.height)} × ${Math.max(PAPER_SIZES[newLayout.format]?.width, PAPER_SIZES[newLayout.format]?.height)} mm`
+                : `${Math.max(PAPER_SIZES[newLayout.format]?.width, PAPER_SIZES[newLayout.format]?.height)} × ${Math.min(PAPER_SIZES[newLayout.format]?.width, PAPER_SIZES[newLayout.format]?.height)} mm`
+              }}
+            </div>
           </div>
         </div>
         <div class="editor-actions">
-          <button type="button" class="btn btn-secondary" @click="closeAddLayoutDialog">Abbrechen</button>
-          <button type="button" class="btn btn-primary" @click="addLayoutToSet">Hinzufügen</button>
+          <button class="btn btn-secondary" @click="closeAddLayoutDialog">Abbrechen</button>
+          <button class="btn btn-primary" @click="addLayoutToSet">Hinzufügen</button>
         </div>
       </div>
     </div>
@@ -306,17 +346,40 @@ function exportTemplatesJson() {
   URL.revokeObjectURL(url);
   toast.success('Templates exportiert', 'Templates wurden als JSON exportiert');
 }
+// Import PAPER_SIZES and LayoutFormat from flyer types
+import { PAPER_SIZES, type LayoutFormat, type LayoutConfig } from '../../types/flyer'
+
 // Dialog-Logik für neues Layout
 const showAddLayoutDialog = ref(false)
 const newLayout = ref({
   id: '',
   name: '',
-  width: 210,
-  height: 297
+  format: 'a5',
+  orientation: 'portrait' as 'portrait' | 'landscape'
+})
+
+// Get available paper sizes for dropdown (only A4, A5, A6, and DIN Lang)
+const paperSizes = Object.entries(PAPER_SIZES)
+  .filter(([key]) => ['a4', 'a5', 'a6', 'dl'].includes(key))
+  .map(([key, value]) => ({
+    id: key,
+    name: value.name
+  }))
+
+// Generate layout name based on selection
+const generatedLayoutName = computed(() => {
+  const size = PAPER_SIZES[newLayout.value.format as keyof typeof PAPER_SIZES]?.name || ''
+  const orientation = newLayout.value.orientation === 'portrait' ? 'hoch' : 'quer'
+  return `${size} ${orientation}`
 })
 
 function openAddLayoutDialog() {
-  newLayout.value = { id: '', name: '', width: 210, height: 297 }
+  newLayout.value = { 
+    id: '', 
+    name: '',
+    format: 'a5',
+    orientation: 'portrait'
+  }
   showAddLayoutDialog.value = true
 }
 
@@ -325,34 +388,56 @@ function closeAddLayoutDialog() {
 }
 
 const addLayoutToSet = () => {
-  // ID generieren (z.B. aus Name)
-  const id = newLayout.value.name.trim().toLowerCase().replace(/\s+/g, '-') as LayoutFormat
-  if (!id || !newLayout.value.name) {
+  const format = `${newLayout.value.format}-${newLayout.value.orientation}` as LayoutFormat
+  const size = PAPER_SIZES[newLayout.value.format as keyof typeof PAPER_SIZES]
+  
+  if (!size) {
+    toast.error('Fehler', 'Ungültiges Format ausgewählt')
+    return
+  }
+  
+  // Use the generated name or custom name if provided
+  const name = newLayout.value.name || generatedLayoutName.value
+  
+  // Generate ID from name
+  const id = name.trim().toLowerCase().replace(/\s+/g, '-') as LayoutFormat
+  
+  if (!id) {
     toast.error('Fehler', 'Name darf nicht leer sein')
     return
   }
+  
   if (templateEntries.value.some(e => e.id === id)) {
     toast.error('Fehler', 'Layout mit dieser ID existiert bereits')
     return
   }
   
-  // Zwei Seiten: Standardmäßig zwei leere Schemas
+  // Calculate dimensions based on orientation
+  const isLandscape = newLayout.value.orientation === 'landscape'
+  const width = isLandscape ? Math.max(size.width, size.height) : Math.min(size.width, size.height)
+  const height = isLandscape ? Math.min(size.width, size.height) : Math.max(size.width, size.height)
+  
+  // Create template with calculated dimensions
   const template = {
-    basePdf: { width: newLayout.value.width, height: newLayout.value.height, padding: [0, 0, 0, 0] as [number, number, number, number] },
+    basePdf: { 
+      width, 
+      height, 
+      padding: [0, 0, 0, 0] as [number, number, number, number] 
+    },
     schemas: [[], []],
   }
   
   templateEntries.value.push({
     id,
-    name: newLayout.value.name,
-    format: `${newLayout.value.width}×${newLayout.value.height}mm`,
+    name,
+    format: `${width}×${height} mm`,
     fields: [],
     template
   })
   
-  console.debug('[TemplateSetEditor] Adding new layout:', { id, name: newLayout.value.name })
+  console.debug('[TemplateSetEditor] Adding new layout:', { id, name, width, height })
   saveTemplatesToStorage()
-  toast.success('Layout hinzugefügt', `Layout "${newLayout.value.name}" wurde erfolgreich hinzugefügt`)
+  toast.success('Layout hinzugefügt', `Layout "${name}" wurde erfolgreich hinzugefügt`)
   showAddLayoutDialog.value = false
 }
 import { Designer } from '@pdfme/ui'
