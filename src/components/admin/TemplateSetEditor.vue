@@ -101,6 +101,14 @@ onMounted(() => {
                     >
                       Mapping
                     </button>
+                    <button
+                      v-if="entry.id !== mainTemplateId"
+                      type="button"
+                      class="btn btn-danger btn-sm"
+                      @click="confirmDeleteTemplate(entry)"
+                    >
+                      Löschen
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -111,6 +119,14 @@ onMounted(() => {
         <div class="table-actions">
           <button type="button" class="btn btn-secondary" @click="openAddLayoutDialog">
             Neues Layout hinzufügen
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-secondary"
+            @click="showDeletedTemplates = true"
+            :disabled="deletedTemplates.length === 0"
+          >
+            Gelöschte Templates anzeigen
           </button>
           <button type="button" class="btn btn-primary" @click="toggleSyncPanel">
             {{ showSyncPanel ? 'Sync Panel schließen' : 'Sync Panel öffnen' }}
@@ -301,6 +317,44 @@ onMounted(() => {
           <button class="btn btn-secondary" @click="closeAddLayoutDialog">Abbrechen</button>
           <button class="btn btn-primary" @click="addLayoutToSet">Hinzufügen</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deleted Templates Modal -->
+  <div v-if="showDeletedTemplates" class="modal-overlay" @click.self="showDeletedTemplates = false">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Gelöschte Templates</h3>
+        <button type="button" class="close" @click="showDeletedTemplates = false">
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        <div v-if="deletedTemplates.length === 0" class="text-muted">
+          Keine gelöschten Templates vorhanden.
+        </div>
+        <div v-else>
+          <div v-for="deleted in deletedTemplates" :key="deleted.id" class="deleted-item">
+            <div class="deleted-item-info">
+              <div class="deleted-item-name">{{ deleted.name }}</div>
+              <div class="deleted-item-time">
+                Gelöscht am {{ new Date(deleted.timestamp).toLocaleString() }}
+              </div>
+            </div>
+            <button 
+              @click="restoreTemplate(deleted.id)" 
+              class="btn btn-sm btn-primary"
+            >
+              Wiederherstellen
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" @click="showDeletedTemplates = false">
+          Schließen
+        </button>
       </div>
     </div>
   </div>
@@ -1097,16 +1151,339 @@ onMounted(() => {
   }
 })
 
-// watch für selectedTemplateSet: baue TemplateSetEntry[] für die UI aus dem Record
+// watch für selectedTemplateSet: baute TemplateSetEntry[] für die UI aus dem Record
 watch(selectedTemplateSet, (newSet: TemplateSet | null) => {
   console.debug('[TemplateSetEditor] selectedTemplateSet changed', newSet)
   processTemplateSet(newSet)
 })
 
+// Deleted templates state
+const showDeletedTemplates = ref(false);
+const deletedTemplates = ref<Array<{
+  id: LayoutFormat;
+  name: string;
+  data: any;
+  timestamp: number;
+}>>([]);
+
+// Load deleted templates from localStorage when component mounts
+onMounted(() => {
+  loadDeletedTemplates();
+});
+
+// Load deleted templates from localStorage
+const loadDeletedTemplates = () => {
+  try {
+    const saved = localStorage.getItem('deletedTemplates');
+    if (saved) {
+      deletedTemplates.value = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Fehler beim Laden des Papierkorbs:', error);
+  }
+};
+
+// Save deleted templates to localStorage
+const saveDeletedTemplates = () => {
+  try {
+    localStorage.setItem('deletedTemplates', JSON.stringify(deletedTemplates.value));
+  } catch (error) {
+    console.error('Fehler beim Speichern des Papierkorbs:', error);
+  }
+};
+
+// Show confirmation dialog before deleting
+const confirmDeleteTemplate = (entry: { id: LayoutFormat; name: string; template: any }) => {
+  if (confirm(`Möchten Sie das Template "${entry.name}" wirklich löschen?`)) {
+    deleteTemplate(entry);
+  }
+};
+
+// Delete a template
+const deleteTemplate = (entry: { id: LayoutFormat; name: string; template: any }) => {
+  try {
+    // Store the template in deletedTemplates
+    deletedTemplates.value.unshift({
+      id: entry.id,
+      name: entry.name,
+      data: JSON.parse(JSON.stringify(entry.template)), // Deep clone
+      timestamp: Date.now()
+    });
+    
+    // Keep only the last 10 deleted templates
+    if (deletedTemplates.value.length > 10) {
+      deletedTemplates.value.pop();
+    }
+    
+    // Save deleted templates
+    saveDeletedTemplates();
+    
+    // Remove the template from the active list
+    const index = templateEntries.value.findIndex(t => t.id === entry.id);
+    if (index !== -1) {
+      templateEntries.value.splice(index, 1);
+      saveTemplatesToStorage();
+      toast.success('Template gelöscht', `"${entry.name}" wurde in den Papierkorb verschoben.`);
+    }
+  } catch (error) {
+    console.error('Fehler beim Löschen des Templates:', error);
+    toast.error('Fehler', 'Das Template konnte nicht gelöscht werden.');
+  }
+};
+
+// Restore a deleted template
+const restoreTemplate = (templateId: LayoutFormat) => {
+  const deletedIndex = deletedTemplates.value.findIndex(t => t.id === templateId);
+  if (deletedIndex === -1) return;
+  
+  const templateToRestore = deletedTemplates.value[deletedIndex];
+  
+  // Add back to active templates if it doesn't exist
+  if (!templateEntries.value.some(t => t.id === templateToRestore.id)) {
+    templateEntries.value.push({
+      id: templateToRestore.id,
+      name: templateToRestore.name,
+      template: templateToRestore.data,
+      format: `${templateToRestore.data.basePdf.width}×${templateToRestore.data.basePdf.height}mm`,
+      fields: templateToRestore.data.schemas[0]?.map((s: any) => s.name) || []
+    });
+    
+    saveTemplatesToStorage();
+    
+    // Remove from deleted templates
+    deletedTemplates.value.splice(deletedIndex, 1);
+    saveDeletedTemplates();
+    
+    // Close the modal if no more deleted templates
+    if (deletedTemplates.value.length === 0) {
+      showDeletedTemplates.value = false;
+    }
+    
+    toast.success('Wiederhergestellt', `"${templateToRestore.name}" wurde erfolgreich wiederhergestellt.`);
+  }
+};
+
 // selectedTemplateSet is now injected at the top
 </script>
 
 <style scoped>
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-body {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 1rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.deleted-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 0.25rem;
+}
+
+.deleted-item:last-child {
+  margin-bottom: 0;
+}
+
+.deleted-item-info {
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.deleted-item-name {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.deleted-item-time {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+}
+
+/* Ensure the modal is above other content */
+.modal-overlay {
+  z-index: 2000;
+}
+
+/* Add some spacing between buttons */
+.table-actions > * {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Make sure the table is responsive */
+.table-responsive {
+  overflow-x: auto;
+}
+
+/* Style for the table */
+.table {
+  width: 100%;
+  margin-bottom: 1rem;
+  color: #212529;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  vertical-align: top;
+  border-top: 1px solid #dee2e6;
+}
+
+.table thead th {
+  vertical-align: bottom;
+  border-bottom: 2px solid #dee2e6;
+}
+
+/* Style for buttons */
+.btn {
+  display: inline-block;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: 1px solid transparent;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  border-radius: 0.25rem;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.2rem;
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.btn-primary:hover {
+  background-color: #0069d9;
+  border-color: #0062cc;
+}
+
+.btn-secondary {
+  color: #fff;
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+.btn-danger {
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.btn-success {
+  color: #fff;
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* Disabled state for buttons */
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+/* Text utilities */
+.text-muted {
+  color: #6c757d !important;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .table-actions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  
+  .table-actions > * {
+    flex: 1 0 auto;
+    margin-bottom: 0.5rem;
+  }
+}
 /* Verbesserte Dialog-Form für Layout-Hinzufügen */
 .editor-modal-content {
   max-width: 90vw; /* Breiter für bessere Benutzererfahrung */
